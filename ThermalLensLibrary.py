@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize_scalar
 import matplotlib.animation as animation
 
-
+wavelength = 1064e-9
 
 def z_R(w0, wavelength):
     return np.pi * w0**2 / wavelength
@@ -21,12 +21,19 @@ def M_free(L):
 
 def M_lens(f):
     return np.array([[1, 0],
-                     [-1 / f, 1]])
+                     [-1/f, 1]])
 
 def apply_matrix(q, M):
     A, B, C, D = M[0,0], M[0,1], M[1,0], M[1,1]
     return (A*q + B) / (C*q + D)
 
+def effective_focalLength(f,P,m0,beamRadius):
+    alpha = m0*f / beamRadius**2
+    f_eff = f / (1+alpha*P)
+    return f_eff
+
+
+#%% use Gaussian beam analysis to simulate general optical system
 
 def propagate(optics, z_points, w0, wavelength, P):
     q = q_at_waist(w0, wavelength)
@@ -80,7 +87,7 @@ def propagate(optics, z_points, w0, wavelength, P):
         q_temp = apply_matrix(q, M_free(L))
         w_z[i] = waist_from_q(q_temp, wavelength)
         
-    return w_z
+    return w_z, thermal_f
 
 
 def find_waist_after(optics, target_name, w0, wavelength, P_list, 
@@ -98,8 +105,7 @@ def find_waist_after(optics, target_name, w0, wavelength, P_list,
     w_min_list = []
 
     for P in P_list:
-        w_z = propagate(optics, z_points, w0, wavelength, P)
-
+        w_z, _ = propagate(optics, z_points, w0, wavelength, P)
         idx = np.argmin(w_z)
         z_min_list.append(z_points[idx])
         w_min_list.append(w_z[idx])
@@ -113,7 +119,7 @@ def beam_after_last_optic(optics, w0, wavelength, P, z_max=1.5, N=2000):
 
     # z vals AFTER the final optic
     z_points = np.linspace(z_last, z_max, N)
-    w_after = propagate(optics, z_points, w0, wavelength, P)
+    w_after, _ = propagate(optics, z_points, w0, wavelength, P)
 
     return z_points, w_after
 
@@ -147,6 +153,53 @@ def find_best_lens_position_opt(
     )
 
     return res.x, res.fun, res
+
+#%% Analytical Gaussian beam calculation
+
+# Telescope separated by distance d
+# Following functions assume COLLIMATED input for the telescope
+
+# input effective focal length for L1
+def waist_L2(w0, F1, d):
+    zR = z_R(w0, wavelength)
+    wL2 = w0/(F1*zR) * np.sqrt( d**2 * F1**2 + zR**2 * (d-F1)**2)
+    return wL2
+
+# input effective focal lengths for both lenses
+def waistAndLoc_afterTele(w0, F1, F2, d):
+    zR = z_R(w0, wavelength)
+    
+    delta = F1**2 + zR**2
+    alpha = d - (F1*zR**2)/delta
+    beta = F1**2 * zR/delta
+    
+    z0 = -F2*(alpha*(F2-alpha) - beta**2) / ((F2-alpha)**2 + beta**2 )
+    
+    w0 = np.sqrt(wavelength/np.pi * F2**2*beta / ((F2-alpha)**2 + beta**2) )
+    
+    return z0, w0
+
+def effective_focalLength_largeP(f,m0,beamRadius,P):
+    
+    alpha = m0*f/beamRadius**2
+    return f / (alpha*P)
+
+# input nominal focal lengths
+def waistAndLoc_asymptotic(w0, f1, f2, d, m0, wL2, P):
+    
+    zR = z_R(w0, wavelength)
+    
+    F1_largeP = effective_focalLength_largeP(f1, m0, w0, P)
+    F2_largeP = effective_focalLength_largeP(f2, m0, wL2, P)
+    
+    delta = F1_largeP**2 + zR**2
+    A = d - F1_largeP*zR**2 / delta
+    B = F1_largeP**2 * zR/delta
+    
+    z0_largeP = -F2_largeP*(A*(F2_largeP-A) - B**2) / ((F2_largeP-A)**2 + B**2 )
+    w0_largeP = np.sqrt(wavelength/np.pi * F2_largeP**2*B / ((F2_largeP-A)**2 + B**2) )
+
+    return z0_largeP, w0_largeP
 
 
 
@@ -183,7 +236,7 @@ def AnimateBeamAfterLastOptic(optics, z_positions, lens_to_move, P_anim, w0, wav
                 o['z'] = z_new
     
         # Propagate
-        w_z = propagate(optics_test, z_positions, w0, wavelength, P_anim)
+        w_z,_ = propagate(optics_test, z_positions, w0, wavelength, P_anim)
     
         # Update plot
         line.set_data(z_positions*1e3, w_z*1e6)
@@ -198,3 +251,96 @@ def AnimateBeamAfterLastOptic(optics, z_positions, lens_to_move, P_anim, w0, wav
     )
 
     plt.tight_layout()
+    
+#%%
+
+def apply_thermal_lens(q_in, wavelength, f_base, m0, P,
+                       tol=1e-12, max_iter=30):
+    """
+    Apply a lens whose focal length depends on the beam radius
+    at the lens plane. This is solved self-consistently.
+
+    Returns:
+        q_out, f_eff
+    """
+
+    # Initial guess: assume no thermal contribution
+    if f_base is not None:
+        q_guess = apply_matrix(q_in, M_lens(f_base))
+    else:
+        q_guess = q_in
+
+    for _ in range(max_iter):
+
+        # Beam radius AFTER the lens (depends on lens strength)
+        w = waist_from_q(q_guess, wavelength)
+
+        # Thermal focal length from that beam size
+        if m0 is not None:
+            f_th = w**2 / (m0 * P)
+        else:
+            f_th = np.inf
+
+        # Combine base and thermal lens
+        if f_base is not None and np.isfinite(f_th):
+            f_eff = 1 / (1/f_base + 1/f_th)
+        elif f_base is not None:
+            f_eff = f_base
+        else:
+            f_eff = f_th
+
+        # Apply that lens to original incoming q
+        q_new = apply_matrix(q_in, M_lens(f_eff))
+
+        # Check convergence
+        if np.abs(q_new - q_guess) < tol:
+            return q_new, f_eff
+
+        q_guess = q_new
+
+    # Return last estimate if not converged
+    return q_guess, f_eff
+
+
+def propagate_v2(optics, z_points, w0, wavelength, P):
+
+    q = q_at_waist(w0, wavelength)
+    z_current = 0
+    w_z = np.zeros_like(z_points)
+
+    # Sort optics by position
+    optics_sorted = sorted(optics, key=lambda o: o['z'])
+
+    # Make a working copy so original list is not modified
+    optics_work = [dict(o) for o in optics_sorted]
+
+    for i, z in enumerate(z_points):
+
+        # Process all optics up to this z
+        while len(optics_work) > 0 and optics_work[0]['z'] <= z:
+
+            elem = optics_work.pop(0)
+            z_elem = elem['z']
+
+            # Free-space propagation to element
+            L = z_elem - z_current
+            if L > 0:
+                q = apply_matrix(q, M_free(L))
+
+            z_current = z_elem
+
+            # Apply lens with self-consistent thermal focal length
+            q, f_eff = apply_thermal_lens(
+                q_in=q,
+                wavelength=wavelength,
+                f_base=elem.get('f_base'),
+                m0=elem.get('m0'),
+                P=P
+            )
+
+        # Propagate from last optic to current z
+        L = z - z_current
+        q_temp = apply_matrix(q, M_free(L))
+        w_z[i] = waist_from_q(q_temp, wavelength)
+
+    return w_z
