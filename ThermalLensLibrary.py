@@ -256,13 +256,7 @@ def AnimateBeamAfterLastOptic(optics, z_positions, lens_to_move, P_anim, w0, wav
 
 def apply_thermal_lens(q_in, wavelength, f_base, m0, P,
                        tol=1e-12, max_iter=30):
-    """
-    Apply a lens whose focal length depends on the beam radius
-    at the lens plane. This is solved self-consistently.
-
-    Returns:
-        q_out, f_eff
-    """
+   
 
     # Initial guess: assume no thermal contribution
     if f_base is not None:
@@ -329,7 +323,6 @@ def propagate_v2(optics, z_points, w0, wavelength, P):
 
             z_current = z_elem
 
-            # Apply lens with self-consistent thermal focal length
             q, f_eff = apply_thermal_lens(
                 q_in=q,
                 wavelength=wavelength,
