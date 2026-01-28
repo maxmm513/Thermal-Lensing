@@ -200,57 +200,6 @@ def waistAndLoc_asymptotic(w0, f1, f2, d, m0, wL2, P):
     w0_largeP = np.sqrt(wavelength/np.pi * F2_largeP**2*B / ((F2_largeP-A)**2 + B**2) )
 
     return z0_largeP, w0_largeP
-
-
-
-#%% Animation
-
-def AnimateBeamAfterLastOptic(optics, z_positions, lens_to_move, P_anim, w0, wavelength=1064e-9):
-    
-    fig, ax = plt.subplots(figsize=(9,5))
-
-    line, = ax.plot([], [], lw=2)
-    lens_marker = ax.axvline(0, color='r', linestyle='--', alpha=0.6)
-
-    ax.set_xlim(z_positions.min()*1e3, z_positions.max()*1e3)
-    ax.set_ylim(0, 3000)
-
-    ax.set_xlabel('z (mm)')
-    ax.set_ylabel('Beam radius (µm)')
-    ax.set_title(f'Beam radius vs. z as {lens_to_move} lens position changes')
-
-    text = ax.text(0.02, 0.9, '', transform=ax.transAxes, fontsize=12)
-
-
-    def init():
-        line.set_data([], [])
-        return line, lens_marker, text
-    
-    def update(frame):
-        z_new = z_positions[frame]
-    
-        # Copy optics and move lens
-        optics_test = [o.copy() for o in optics]
-        for o in optics_test:
-            if o['name'] == lens_to_move:
-                o['z'] = z_new
-    
-        # Propagate
-        w_z,_ = propagate(optics_test, z_positions, w0, wavelength, P_anim)
-    
-        # Update plot
-        line.set_data(z_positions*1e3, w_z*1e6)
-        lens_marker.set_xdata([z_new*1e3, z_new*1e3])
-        text.set_text(f"{lens_to_move} at z = {z_new*1e3:.2f} mm")
-    
-        return line, lens_marker, text
-    
-    ani = animation.FuncAnimation(
-        fig, update, frames=len(z_positions), init_func=init,
-        interval=10, blit=True
-    )
-
-    plt.tight_layout()
     
 #%%
 
@@ -337,3 +286,127 @@ def propagate_v2(optics, z_points, w0, wavelength, P):
         w_z[i] = waist_from_q(q_temp, wavelength)
 
     return w_z
+
+#%% Animation
+def AnimateBeamAfterLastOptic(
+        optics,
+        z_plot,              # fixed observation axis
+        z_lens_positions,    # lens positions to animate over (frames)
+        lens_to_move,
+        P_anim,
+        w0,
+        wavelength=1064e-9):
+
+    fig, ax = plt.subplots(figsize=(9,5))
+
+    line, = ax.plot(z_plot*1e3, np.zeros_like(z_plot), lw=2)
+    lens_marker = ax.axvline(0, color='r', linestyle='--', alpha=0.6)
+
+    ax.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
+    ax.set_ylim(0, 3000)
+
+    ax.set_xlabel('z (mm)')
+    ax.set_ylabel('Beam radius (µm)')
+    ax.set_title(f'Beam radius vs z as {lens_to_move} moves')
+
+    text = ax.text(0.02, 0.9, '', transform=ax.transAxes, fontsize=12)
+
+    def init():
+        line.set_ydata(np.zeros_like(z_plot))
+        return line, lens_marker, text
+
+    def update(frame):
+
+        z_new = z_lens_positions[frame]
+
+        # move lens on a fresh copy
+        optics_frame = [o.copy() for o in optics]
+        for o in optics_frame:
+            if o['name'] == lens_to_move:
+                o['z'] = z_new
+
+        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P_anim)
+
+        line.set_ydata(w_z*1e6)
+        lens_marker.set_xdata([z_new*1e3, z_new*1e3])
+        text.set_text(f"{lens_to_move} at z = {z_new*1e3:.2f} mm")
+
+        return line, lens_marker, text
+
+    ani = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(z_lens_positions),
+        init_func=init,
+        interval=30,
+        blit=True
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+    return ani
+
+
+def AnimateBeamVsPower(
+        optics,
+        z_plot,          # fixed observation axis
+        P_values,        # powers to animate over (frames)
+        w0,
+        wavelength=1064e-9):
+
+    fig, ax = plt.subplots(figsize=(9,5))
+
+    line, = ax.plot(z_plot*1e3, np.zeros_like(z_plot), lw=2)
+
+    ax.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
+    ax.set_ylim(0, 3000)
+
+    ax.set_xlabel('z (mm)')
+    ax.set_ylabel('Beam radius (µm)')
+    ax.set_title('Beam radius vs z as power changes')
+
+    text = ax.text(0.72, 0.9, '', transform=ax.transAxes, fontsize=12)
+
+    # lens position markers
+    for optic in optics:
+        if optic.get('f_base') is not None or optic.get('m0') is not None:
+            z_lens = optic['z'] * 1e3
+            ax.axvline(z_lens, linestyle=':', alpha=0.7)
+            ax.text(z_lens, 2800, optic['name'],
+                    rotation=90,
+                    verticalalignment='top',
+                    horizontalalignment='center',
+                    fontsize=10)
+
+    def init():
+        line.set_ydata(np.zeros_like(z_plot))
+        return line, text
+
+    def update(frame):
+
+        P = P_values[frame]
+
+        # Fresh optics copy (propagate destroys the list)
+        optics_frame = [o.copy() for o in optics]
+
+        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P)
+
+        line.set_ydata(w_z*1e6)
+        text.set_text(f"Power = {P:.2f} W")
+
+        return line, text
+
+    ani = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(P_values),
+        init_func=init,
+        interval=40,
+        blit=True
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+    return ani

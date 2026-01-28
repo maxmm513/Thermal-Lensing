@@ -8,11 +8,12 @@ plt.close('all')
 #%% Parameters and Optical System
 wavelength = 1064e-9     
 w0 = 1e-3               
-P_list = [10,30,75,125,200]
+# P_list = [1,30,75,125,200]
+P_list = [10, 50, 100, 250, 500]
 m0 = 4e-9
 
-f1_dict = 250e-3
-f2_dict = 500e-3
+f1_dict = 200e-3
+f2_dict = 50e-3
 dist = f1_dict+f2_dict
 
 optics = [
@@ -23,12 +24,13 @@ optics = [
     {'z': dist, 'f_base': f2_dict, 'm0': m0, 'name': f'{f2_dict*1e3} mm'}
 ]
 
-z_obs = 8.5
+z_obs = 0.4
 
 #%%
-z_points = np.linspace(0, z_obs, 800) 
+z_points = np.linspace(0, z_obs, 3000) 
 
-plt.figure(figsize=(9,4))
+# plt.figure(figsize=(9,4))
+plt.figure(figsize=(6,3))
 for P in P_list:
     w_z,thermal_f = TL.propagate(optics, z_points, w0, wavelength, P)
     plt.plot(z_points*1e3, w_z*1e6, label=f'P={P} W')
@@ -46,7 +48,7 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
 #%%
-# Plot final waist vs beam power
+# Plot waist vs beam power in the final plane of z_obs
 
 # P_scan = np.linspace(min(P_list), max(P_list), 100)
 # w_final = np.zeros_like(P_scan)
@@ -87,7 +89,7 @@ for P in P_list:
 
 
 # plot beam behavior after final optic
-plt.figure(figsize=(8,4))
+plt.figure(figsize=(6,3))
 
 for j in range(len(P_list)):
     plt.plot((z_after_dict[P_list[j]] - optics[-1]['z'])*1e3, # plot z relative to final optic
@@ -134,7 +136,7 @@ plt.tight_layout()
 
 #%% Analytical calculation -- assume collimated input
 
-Pow = np.linspace(1,np.max(P_list),1000)
+Pow = np.linspace(1,np.max(P_list)*10,10000)
 
 f1 = optics[0]['f_base']
 f2 = optics[1]['f_base']
@@ -151,17 +153,17 @@ z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
 Pidx = np.argmax(z0_after)
 P_inflec = Pow[Pidx]
 
-fig, ax = plt.subplots(1,2, figsize=(8,4))
+fig, ax = plt.subplots(1,2, figsize=(6,3))
 ax[0].plot(Pow, z0_after*1e3)
-ax[0].axvline(P_inflec, ls='--', alpha=0.3)
+# ax[0].axvline(P_inflec, ls='--', alpha=0.3)
 ax[0].set_ylabel('Focus after lens (mm)')
 ax[0].set_xlabel('Power (W)'); ax[0].grid(True, alpha=0.3)
-ax[0].text(0.45, 0.95,                      
-    f'Inflection P = {P_inflec:.2f} W',
-    transform=ax[0].transAxes,
-    verticalalignment='top',
-    bbox=dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.9)
-)
+# ax[0].text(0.45, 0.95,                      
+#     f'Inflection P = {P_inflec:.2f} W',
+#     transform=ax[0].transAxes,
+#     verticalalignment='top',
+#     bbox=dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.9)
+# )
 
 ax[1].plot(Pow, w0_after*1e6)
 ax[1].set_ylabel('Waist after telescope (um)')
@@ -170,20 +172,34 @@ plt.tight_layout()
 
 
 print(f'inflection power = {P_inflec:.2f} W')
+print(f'Percent change in z0 from maximum: {(np.max(z0_after) - z0_after[-1])/np.max(z0_after)}')
+print(f'Percent change in w0: {np.abs(w0_after[-1]-w0_after[0])/w0_after[0]}')
 
 # asymptotic behavior -- need to fix the function
 # z0_largeP, w0_largeP = TL.waistAndLoc_asymptotic(w0, f1, f2, f1+f2, m0, wL2, Pow)
 
 
 
-#%% Animate beam radius vs z as the -75 mm lens moves
+#%% Animation
 
-# lens_to_move = '125 mm'
+z_plot = np.linspace(0, z_obs, 3000)
+z_lens_positions = np.linspace(0.1, 0.4, 120)
 
-# # Range of lens positions to animate (meters)
-# z_positions_anim = np.linspace(0.377, 0.581, 100)
+# ani = TL.AnimateBeamAfterLastOptic(
+#     optics,
+#     z_plot,
+#     z_lens_positions,
+#     lens_to_move=optics[-1]['name'],
+#     P_anim=40,
+#     w0=w0
+# )
 
-# # Use a single power setting for animation
-# P_anim = P_list[-1]
+P_values = np.linspace(0, 10, 300)
 
-# TL.AnimateBeamAfterLastOptic(optics, z_positions_anim, lens_to_move, P_anim, w0)
+ani = TL.AnimateBeamVsPower(
+    optics,
+    z_plot,
+    P_values,
+    w0
+)
+
