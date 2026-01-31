@@ -200,6 +200,42 @@ def waistAndLoc_asymptotic(w0, f1, f2, d, m0, wL2, P):
     w0_largeP = np.sqrt(wavelength/np.pi * F2_largeP**2*B / ((F2_largeP-A)**2 + B**2) )
 
     return z0_largeP, w0_largeP
+
+def FindExtrema(x,y):
+    
+    dy = np.gradient(y, x)
+
+    sign = np.sign(dy)
+    sign_change = np.diff(sign)
+    max_idx = np.where(sign_change < 0)[0] + 1
+    min_idx = np.where(sign_change > 0)[0] + 1
+
+    # threshold = 1e-10
+    # max_idx = [i for i in max_idx if abs(dy[i-1]) > threshold and abs(dy[i+1]) > threshold]
+    # min_idx = [i for i in min_idx if abs(dy[i-1]) > threshold and abs(dy[i+1]) > threshold]
+
+    x_min = x[min_idx]
+    x_max = x[max_idx]
+
+    y_min = y[min_idx]
+    y_max = y[max_idx]
+    
+    return x_min, x_max, y_min, y_max
+
+def Plot_z0w0_afterTelescope(P, z0_after, w0_after):
+        
+    fig, ax = plt.subplots(1,2, figsize=(6,3))
+    
+    ax[0].plot(P, z0_after*1e3)
+    ax[0].set_ylabel('Focus after lens (mm)');
+    ax[0].set_xlabel('Power (W)');
+    ax[0].grid(True, alpha=0.3)
+    
+    ax[1].plot(P, w0_after*1e6)
+    ax[1].set_ylabel('Waist after telescope (um)'); 
+    ax[1].set_xlabel('Power (W)'); 
+    ax[1].grid(True, alpha=0.3)
+    plt.tight_layout()        
     
 #%%
 
@@ -354,6 +390,8 @@ def AnimateBeamVsPower(
         P_values,        # powers to animate over (frames)
         w0,
         wavelength=1064e-9):
+    
+    plt.rcParams['font.size'] =13
 
     fig, ax = plt.subplots(figsize=(9,5))
 
@@ -364,7 +402,6 @@ def AnimateBeamVsPower(
 
     ax.set_xlabel('z (mm)')
     ax.set_ylabel('Beam radius (µm)')
-    ax.set_title('Beam radius vs z as power changes')
 
     text = ax.text(0.72, 0.9, '', transform=ax.transAxes, fontsize=12)
 
@@ -404,6 +441,199 @@ def AnimateBeamVsPower(
         init_func=init,
         interval=40,
         blit=True
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+    return ani
+
+
+# def AnimateBeamAndFocusVsPower(
+#         optics,
+#         z_plot,
+#         P_values,
+#         w0,
+#         f1, f2, m0, wL1,
+#         wavelength=1064e-9):
+
+#     fig, (ax_beam, ax_focus) = plt.subplots(
+#         1, 2, figsize=(13,5),
+#         gridspec_kw={'width_ratios': [3, 1]}
+#     )
+
+#     # ---------------- LEFT: Beam vs z ----------------
+#     beam_line, = ax_beam.plot(z_plot*1e3, np.zeros_like(z_plot), lw=2)
+#     power_text = ax_beam.text(0.02, 0.92, '',
+#                               transform=ax_beam.transAxes,
+#                               fontsize=12)
+
+#     ax_beam.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
+#     ax_beam.set_ylim(0, 3000)
+#     ax_beam.set_xlabel('z (mm)')
+#     ax_beam.set_ylabel('Beam radius (µm)')
+#     ax_beam.set_title('Beam radius vs z')
+
+#     # Lens markers (static)
+#     for optic in optics:
+#         if optic.get('f_base') is not None or optic.get('m0') is not None:
+#             z_lens = optic['z'] * 1e3
+#             ax_beam.axvline(z_lens, linestyle=':', alpha=0.6)
+#             ax_beam.text(z_lens, 2800, optic['name'],
+#                          rotation=90,
+#                          va='top', ha='center', fontsize=9)
+
+#     # ---------------- RIGHT: Focus vs Power ----------------
+#     focus_line, = ax_focus.plot([], [], lw=2)
+#     focus_point, = ax_focus.plot([], [], 'o')
+
+#     ax_focus.set_xlim(P_values.min(), P_values.max())
+#     ax_focus.set_xlabel('Power (W)')
+#     ax_focus.set_ylabel('Focus position after L2 (mm)')
+#     ax_focus.set_title('Focus shift vs Power')
+
+#     P_trace = []
+#     z_trace = []
+
+#     # -------------------------------------------------------
+
+#     def init():
+#         beam_line.set_ydata(np.zeros_like(z_plot))
+#         focus_line.set_data([], [])
+#         focus_point.set_data([], [])
+#         power_text.set_text('')
+#         return beam_line, focus_line, focus_point, power_text
+
+#     def update(frame):
+
+#         P = P_values[frame]
+
+#         # ---- LEFT: beam propagation ----
+#         optics_frame = [o.copy() for o in optics]
+#         w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P)
+#         beam_line.set_ydata(w_z*1e6)
+#         power_text.set_text(f'Power = {P:.2f} W')
+
+#         # ---- RIGHT: analytic focus calculation ----
+#         f1_eff = effective_focalLength(f1, P, m0, wL1)
+#         wL2 = waist_L2(w0, f1_eff, f1+f2)
+#         f2_eff = effective_focalLength(f2, P, m0, wL2)
+
+#         z0_after, _ = waistAndLoc_afterTele(
+#             w0, f1_eff, f2_eff, f1+f2
+#         )
+
+#         P_trace.append(P)
+#         z_trace.append(z0_after)
+
+#         focus_line.set_data(P_trace, z_trace)
+#         focus_point.set_data([P], [z0_after])
+
+#         return beam_line, focus_line, focus_point, power_text
+
+#     ani = animation.FuncAnimation(
+#         fig,
+#         update,
+#         frames=len(P_values),
+#         init_func=init,
+#         interval=40,
+#         blit=True
+#     )
+
+#     plt.tight_layout()
+#     plt.show()
+
+#     return ani
+
+def AnimateBeamAndFocusVsPower(
+        optics,
+        z_plot,
+        P_values,
+        w0,
+        f1, f2, m0, wL1,
+        wavelength=1064e-9):
+
+    fig, (ax_beam, ax_focus) = plt.subplots(
+        1, 2, figsize=(13,5),
+        gridspec_kw={'width_ratios': [3, 1]}
+    )
+
+    # ---------------- LEFT: Beam vs z ----------------
+    beam_line, = ax_beam.plot(z_plot*1e3, np.zeros_like(z_plot), lw=2)
+    power_text = ax_beam.text(0.02, 0.92, '',
+                              transform=ax_beam.transAxes,
+                              fontsize=12)
+
+    ax_beam.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
+    ax_beam.set_ylim(0, 3000)
+    ax_beam.set_xlabel('z (mm)')
+    ax_beam.set_ylabel('Beam radius (µm)')
+    ax_beam.set_title('Beam radius vs z')
+
+    # Lens markers
+    for optic in optics:
+        if optic.get('f_base') is not None or optic.get('m0') is not None:
+            z_lens = optic['z'] * 1e3
+            ax_beam.axvline(z_lens, linestyle=':', alpha=0.6)
+            ax_beam.text(z_lens, 2800, optic['name'],
+                         rotation=90, va='top', ha='center', fontsize=9)
+
+    # ---------------- RIGHT: Focus vs Power ----------------
+    focus_line, = ax_focus.plot([], [], lw=2)
+    focus_point, = ax_focus.plot([], [], 'o')
+
+    ax_focus.set_xlim(P_values.min(), P_values.max())
+    ax_focus.set_xlabel('Power (W)')
+    ax_focus.set_ylabel('Focus z after L2 (mm)')
+    ax_focus.set_title('Focus shift vs Power')
+
+    # Precompute correct y-limits in mm
+    z_all_mm = []
+    for P in P_values:
+        f1_eff = effective_focalLength(f1, P, m0, wL1)
+        wL2 = waist_L2(w0, f1_eff, f1+f2)
+        f2_eff = effective_focalLength(f2, P, m0, wL2)
+        z0_after, _ = waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
+        z_all_mm.append(z0_after * 1e3)
+
+    ax_focus.set_ylim(min(z_all_mm), max(z_all_mm)*1.3)
+
+    P_trace = []
+    z_trace = []
+
+    # -------------------------------------------------------
+
+    def update(frame):
+
+        P = P_values[frame]
+
+        # ---- LEFT: beam ----
+        optics_frame = [o.copy() for o in optics]
+        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P)
+        beam_line.set_ydata(w_z*1e6)
+        power_text.set_text(f'Power = {P:.2f} W')
+
+        # ---- RIGHT: analytic focus ----
+        f1_eff = effective_focalLength(f1, P, m0, wL1)
+        wL2 = waist_L2(w0, f1_eff, f1+f2)
+        f2_eff = effective_focalLength(f2, P, m0, wL2)
+        z0_after, _ = waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
+
+        z_mm = z0_after * 1e3
+        P_trace.append(P)
+        z_trace.append(z_mm)
+
+        focus_line.set_data(P_trace, z_trace)
+        focus_point.set_data([P], [z_mm])
+
+        return beam_line, focus_line, focus_point, power_text
+
+    ani = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(P_values),
+        interval=40,
+        blit=False   # IMPORTANT
     )
 
     plt.tight_layout()
