@@ -156,28 +156,41 @@ def find_best_lens_position_opt(
 
 #%% Analytical Gaussian beam calculation
 
-# Telescope separated by distance d
-# Following functions assume COLLIMATED input for the telescope
+# Telescope lenses separated by distance d
+
+def waist_L1(w0, z0=0):
+    zR = z_R(w0, wavelength)
+    wL1 = w0/zR * np.sqrt(z0**2 + zR**2)
+    return wL1
 
 # input effective focal length for L1
-def waist_L2(w0, F1, d):
+def waist_L2(w0, F1, d, z0=0):
     zR = z_R(w0, wavelength)
-    wL2 = w0/(F1*zR) * np.sqrt( d**2 * F1**2 + zR**2 * (d-F1)**2)
+    delta = (F1-z0)**2 + zR**2
+    A = d + F1/delta * (z0*(F1-z0)-zR**2)
+    B = F1**2 * zR / delta
+    wL2 = w0*np.sqrt(delta*(A**2 + B**2)) / (F1*zR)
+    # wL2 = w0/(F1*zR) * np.sqrt( d**2 * F1**2 + zR**2 * (d-F1)**2)
     return wL2
 
 # input effective focal lengths for both lenses
-def waistAndLoc_afterTele(w0, F1, F2, d):
+def waistAndLoc_afterTele(w0, F1, F2, d, z0=0):
     zR = z_R(w0, wavelength)
+    delta = (F1-z0)**2 + zR**2
+    A = d + F1/delta * (z0*(F1-z0)-zR**2)
+    B = F1**2 * zR / delta
+    gamma = (F2-A)**2 + B**2
     
-    delta = F1**2 + zR**2
-    alpha = d - (F1*zR**2)/delta
-    beta = F1**2 * zR/delta
+    z0_prime = F2*(B**2 - A*(F2-A)) / gamma
+    w0_prime = w0*np.abs(F1)*np.abs(F2) / np.sqrt(delta*gamma)
     
-    z0 = -F2*(alpha*(F2-alpha) - beta**2) / ((F2-alpha)**2 + beta**2 )
+    # delta = F1**2 + zR**2
+    # alpha = d - (F1*zR**2)/delta
+    # beta = F1**2 * zR/delta
+    # z0 = -F2*(alpha*(F2-alpha) - beta**2) / ((F2-alpha)**2 + beta**2 )
+    # w0 = np.sqrt(wavelength/np.pi * F2**2*beta / ((F2-alpha)**2 + beta**2) )
     
-    w0 = np.sqrt(wavelength/np.pi * F2**2*beta / ((F2-alpha)**2 + beta**2) )
-    
-    return z0, w0
+    return z0_prime, w0_prime
 
 def effective_focalLength_largeP(f,m0,beamRadius,P):
     

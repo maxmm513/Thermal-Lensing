@@ -7,8 +7,8 @@ plt.close('all')
 
 #%% Parameters and Optical System
 wavelength = 1064e-9     
-w0 = 1e-3               
-# P_list = [1,30,75,125,200]
+w0 = 1e-3       
+z0 = 6       
 P_list = [10, 50, 100, 250, 500]
 m0 = 4e-9
 
@@ -126,7 +126,7 @@ Pow = np.linspace(1,np.max(P_list)*5, 10000)
 f1 = optics[0]['f_base']
 f2 = optics[1]['f_base']
 
-wL1 = w0
+wL1 = TL.waist_L1(w0, z0)
 f1_eff = TL.effective_focalLength(f1, Pow, m0, wL1)
 
 wL2 = TL.waist_L2(w0, f1_eff, f1+f2)
@@ -174,21 +174,3 @@ z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
 ani = TL.AnimateBeamAndFocusVsPower(optics,z_plot, P_values,w0, f1, f2, m0, wL1)
 
 # ani.save("beam_power_animation.gif", fps=20)
-
-#%%
-
-def intermediateFocusPosition(F1, zR):
-    z0_int = F1 * zR**2 / (F1**2 + zR**2)
-    zR_int = F1**2 * zR / (F1**2 + zR**2)
-    return z0_int, zR_int
-
-z0_int, zR_int = intermediateFocusPosition(f1_eff, TL.z_R(w0, wavelength))
-
-plt.rcParams['font.size'] = 13
-plt.figure(figsize=(6,4))
-plt.plot(P_values, (z0_int-dist)*1e3)
-plt.axhline(0, ls='--', alpha=0.3)
-plt.xlabel('Power (W)')
-plt.ylabel('$z_0^{int}$ - d (mm)')
-plt.tight_layout()
-plt.grid(True, alpha=0.3)
