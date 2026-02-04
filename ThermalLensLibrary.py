@@ -32,65 +32,106 @@ def effective_focalLength(f,P,m0,beamRadius):
     f_eff = f / (1+alpha*P)
     return f_eff
 
+# Returns the complex q parameter immediately AFTER the last optic.
+def q_after_last_optic(optics, w0, wavelength, P, z0=0):
+    zR = z_R(w0, wavelength)
+    q = z0 + 1j*zR
+    z_current = 0
+
+    optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
+
+    for elem in optics_sorted:
+        z_elem = elem['z']
+
+        # free space to optic
+        L = z_elem - z_current
+        if L > 0:
+            q = apply_matrix(q, M_free(L))
+
+        z_current = z_elem
+
+        # beam size at optic
+        w_here = waist_from_q(q, wavelength)
+
+        # thermal focal length
+        f_th = np.inf
+        if elem['m0'] is not None:
+            f_th = (w_here**2) / (elem['m0'] * P)
+
+        # effective lens
+        if elem['f_base'] is not None and np.isfinite(f_th):
+            f_eff = 1 / (1/elem['f_base'] + 1/f_th)
+        elif elem['f_base'] is not None:
+            f_eff = elem['f_base']
+        elif np.isfinite(f_th):
+            f_eff = f_th
+        else:
+            continue
+
+        q = apply_matrix(q, M_lens(f_eff))
+
+    return q
 
 #%% use Gaussian beam analysis to simulate general optical system
 
-def propagate(optics, z_points, w0, wavelength, P):
-    q = q_at_waist(w0, wavelength)
+def propagate(optics, z_points, w0, wavelength, P, z0=0):
+    """
+    General Gaussian propagation with waist located z0 BEFORE first optic.
+    z0 > 0  => converging beam at first optic
+    z0 < 0  => diverging beam at first optic
+    """
+
+    zR = z_R(w0, wavelength)
+
+    # ---- THIS IS THE KEY FIX ----
+    # q at first optic, not at waist
+    q = z0 + 1j*zR
     z_current = 0
+
     w_z = np.zeros_like(z_points)
 
-    # Sort optics by z just in case
     optics_sorted = sorted(optics, key=lambda o: o['z'])
     thermal_f = []
 
     for i, z in enumerate(z_points):
-        
-        # process all optics up to this z value
-        # removing an element from the optics list each iter
+
         while len(optics_sorted) > 0 and optics_sorted[0]['z'] <= z:
             elem = optics_sorted.pop(0)
             z_elem = elem['z']
             L = z_elem - z_current
-            
-            # propagate distance between optics
+
             if L > 0:
                 q = apply_matrix(q, M_free(L))
-            
+
             z_current = z_elem
 
-            # compute current beam waist at this optic
             w_here = waist_from_q(q, wavelength)
 
-            # thermal focal length
-            # calculate only if m0 is not None
             f_th = np.inf
             if elem['m0'] is not None:
                 f_th = (w_here**2) / (elem['m0'] * P)
                 thermal_f.append(f_th)
 
-            # combine focal lengths 
-            f_effective = None
             if elem['f_base'] is not None and np.isfinite(f_th):
                 f_effective = 1 / (1/elem['f_base'] + 1/f_th)
             elif elem['f_base'] is not None:
                 f_effective = elem['f_base']
             elif np.isfinite(f_th):
                 f_effective = f_th
+            else:
+                f_effective = None
 
-            # apply lens if finite
             if f_effective is not None and np.isfinite(f_effective):
                 q = apply_matrix(q, M_lens(f_effective))
-                
-        # propagate remaining distance
+
         L = z - z_current
         q_temp = apply_matrix(q, M_free(L))
         w_z[i] = waist_from_q(q_temp, wavelength)
-        
+
     return w_z, thermal_f
 
 
-def find_waist_after(optics, target_name, w0, wavelength, P_list, 
+def find_waist_after(optics, target_name, w0, wavelength, P_list, z0=0,
                      z_max=2.0, N=4000):
 
     # Locate the optical element by name
@@ -105,25 +146,25 @@ def find_waist_after(optics, target_name, w0, wavelength, P_list,
     w_min_list = []
 
     for P in P_list:
-        w_z, _ = propagate(optics, z_points, w0, wavelength, P)
+        w_z, _ = propagate(optics, z_points, w0, wavelength, P, z0=z0)
         idx = np.argmin(w_z)
         z_min_list.append(z_points[idx])
         w_min_list.append(w_z[idx])
 
     return np.array(z_min_list), np.array(w_min_list)
 
-def beam_after_last_optic(optics, w0, wavelength, P, z_max=1.5, N=2000):
+def beam_after_last_optic(optics, w0, wavelength, P, z0=0, z_max=1.5, N=2000):
  
     optics_sorted = sorted(optics, key=lambda o: o['z'])
     z_last = optics_sorted[-1]['z']
 
     # z vals AFTER the final optic
     z_points = np.linspace(z_last, z_max, N)
-    w_after, _ = propagate(optics, z_points, w0, wavelength, P)
+    w_after, _ = propagate(optics, z_points, w0, wavelength, P, z0=z0)
 
     return z_points, w_after
 
-def divergence_score(z_lens, optics, lens_name, w0, wavelength, P):
+def divergence_score(z_lens, optics, lens_name, w0, wavelength, P, z0=0):
 
     optics_test = [o.copy() for o in optics]
 
@@ -134,7 +175,7 @@ def divergence_score(z_lens, optics, lens_name, w0, wavelength, P):
 
     # Propagate after final optic
     z_after, w_after = beam_after_last_optic(
-        optics_test, w0, wavelength, P, z_max=0.75
+        optics_test, w0, wavelength, P, z0=z0, z_max=0.75
     )
 
     # Fit w(z) to a straight line, divergence is the slope
@@ -142,12 +183,12 @@ def divergence_score(z_lens, optics, lens_name, w0, wavelength, P):
     return abs(slope)
 
 def find_best_lens_position_opt(
-    optics, lens_name, w0, wavelength, P,
+    optics, lens_name, w0, wavelength, P, z0=0,
     z_bounds=(0, 1)  # meters
 ):
 
     res = minimize_scalar(
-        lambda z: divergence_score(z, optics, lens_name, w0, wavelength, P),
+        lambda z: divergence_score(z, optics, lens_name, w0, wavelength, P, z0=z0),
         bounds=z_bounds,
         method='bounded'
     )
@@ -344,7 +385,8 @@ def AnimateBeamAfterLastOptic(
         lens_to_move,
         P_anim,
         w0,
-        wavelength=1064e-9):
+        wavelength=1064e-9,
+        z0=0):
 
     fig, ax = plt.subplots(figsize=(9,5))
 
@@ -374,7 +416,7 @@ def AnimateBeamAfterLastOptic(
             if o['name'] == lens_to_move:
                 o['z'] = z_new
 
-        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P_anim)
+        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P_anim, z0=z0)
 
         line.set_ydata(w_z*1e6)
         lens_marker.set_xdata([z_new*1e3, z_new*1e3])
@@ -402,7 +444,8 @@ def AnimateBeamVsPower(
         z_plot,          # fixed observation axis
         P_values,        # powers to animate over (frames)
         w0,
-        wavelength=1064e-9):
+        wavelength=1064e-9,
+        z0=0):
     
     plt.rcParams['font.size'] =13
 
@@ -440,7 +483,7 @@ def AnimateBeamVsPower(
         # Fresh optics copy (propagate destroys the list)
         optics_frame = [o.copy() for o in optics]
 
-        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P)
+        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P, z0=z0)
 
         line.set_ydata(w_z*1e6)
         text.set_text(f"Power = {P:.2f} W")
@@ -461,183 +504,93 @@ def AnimateBeamVsPower(
 
     return ani
 
-
-# def AnimateBeamAndFocusVsPower(
-#         optics,
-#         z_plot,
-#         P_values,
-#         w0,
-#         f1, f2, m0, wL1,
-#         wavelength=1064e-9):
-
-#     fig, (ax_beam, ax_focus) = plt.subplots(
-#         1, 2, figsize=(13,5),
-#         gridspec_kw={'width_ratios': [3, 1]}
-#     )
-
-#     # ---------------- LEFT: Beam vs z ----------------
-#     beam_line, = ax_beam.plot(z_plot*1e3, np.zeros_like(z_plot), lw=2)
-#     power_text = ax_beam.text(0.02, 0.92, '',
-#                               transform=ax_beam.transAxes,
-#                               fontsize=12)
-
-#     ax_beam.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
-#     ax_beam.set_ylim(0, 3000)
-#     ax_beam.set_xlabel('z (mm)')
-#     ax_beam.set_ylabel('Beam radius (µm)')
-#     ax_beam.set_title('Beam radius vs z')
-
-#     # Lens markers (static)
-#     for optic in optics:
-#         if optic.get('f_base') is not None or optic.get('m0') is not None:
-#             z_lens = optic['z'] * 1e3
-#             ax_beam.axvline(z_lens, linestyle=':', alpha=0.6)
-#             ax_beam.text(z_lens, 2800, optic['name'],
-#                          rotation=90,
-#                          va='top', ha='center', fontsize=9)
-
-#     # ---------------- RIGHT: Focus vs Power ----------------
-#     focus_line, = ax_focus.plot([], [], lw=2)
-#     focus_point, = ax_focus.plot([], [], 'o')
-
-#     ax_focus.set_xlim(P_values.min(), P_values.max())
-#     ax_focus.set_xlabel('Power (W)')
-#     ax_focus.set_ylabel('Focus position after L2 (mm)')
-#     ax_focus.set_title('Focus shift vs Power')
-
-#     P_trace = []
-#     z_trace = []
-
-#     # -------------------------------------------------------
-
-#     def init():
-#         beam_line.set_ydata(np.zeros_like(z_plot))
-#         focus_line.set_data([], [])
-#         focus_point.set_data([], [])
-#         power_text.set_text('')
-#         return beam_line, focus_line, focus_point, power_text
-
-#     def update(frame):
-
-#         P = P_values[frame]
-
-#         # ---- LEFT: beam propagation ----
-#         optics_frame = [o.copy() for o in optics]
-#         w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P)
-#         beam_line.set_ydata(w_z*1e6)
-#         power_text.set_text(f'Power = {P:.2f} W')
-
-#         # ---- RIGHT: analytic focus calculation ----
-#         f1_eff = effective_focalLength(f1, P, m0, wL1)
-#         wL2 = waist_L2(w0, f1_eff, f1+f2)
-#         f2_eff = effective_focalLength(f2, P, m0, wL2)
-
-#         z0_after, _ = waistAndLoc_afterTele(
-#             w0, f1_eff, f2_eff, f1+f2
-#         )
-
-#         P_trace.append(P)
-#         z_trace.append(z0_after)
-
-#         focus_line.set_data(P_trace, z_trace)
-#         focus_point.set_data([P], [z0_after])
-
-#         return beam_line, focus_line, focus_point, power_text
-
-#     ani = animation.FuncAnimation(
-#         fig,
-#         update,
-#         frames=len(P_values),
-#         init_func=init,
-#         interval=40,
-#         blit=True
-#     )
-
-#     plt.tight_layout()
-#     plt.show()
-
-#     return ani
-
 def AnimateBeamAndFocusVsPower(
         optics,
         z_plot,
         P_values,
         w0,
-        f1, f2, m0, wL1,
-        wavelength=1064e-9):
+        wavelength=1064e-9,
+        z0=0):
 
+    plt.rcParams['font.size'] = 13
+
+    print("Precomputing frames (fast exact method)...")
+
+    # Precompute beam profiles and exact waist positions
+    w_frames = []
+    z_focus_list = []
+
+    z_last = max(o['z'] for o in optics)
+
+    for P in P_values:
+        optics_copy = [o.copy() for o in optics]
+
+        # Full beam profile
+        w_z, _ = propagate(optics_copy, z_plot, w0, wavelength, P, z0=z0)
+        w_frames.append(w_z * 1e6)
+
+        # Exact waist location from q (no search!)
+        q_last = q_after_last_optic(optics, w0, wavelength, P, z0=z0)
+        z_waist = -np.real(q_last) + z_last
+        z_focus_list.append(z_waist * 1e3)
+
+    w_frames = np.array(w_frames)
+    z_focus_list = np.array(z_focus_list)
+
+    print("Precompute complete.")
+
+    # ------------------------------------------------------------
+    # Figure
     fig, (ax_beam, ax_focus) = plt.subplots(
         1, 2, figsize=(13,5),
         gridspec_kw={'width_ratios': [3, 1]}
     )
 
-    # ---------------- LEFT: Beam vs z ----------------
-    beam_line, = ax_beam.plot(z_plot*1e3, np.zeros_like(z_plot), lw=2)
+    # Left panel
+    beam_line, = ax_beam.plot(z_plot*1e3, w_frames[0], lw=2)
     power_text = ax_beam.text(0.02, 0.92, '',
-                              transform=ax_beam.transAxes,
-                              fontsize=12)
+                              transform=ax_beam.transAxes)
 
     ax_beam.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
-    ax_beam.set_ylim(0, 3000)
+    ax_beam.set_ylim(0, 1.1*np.max(w_frames))
     ax_beam.set_xlabel('z (mm)')
     ax_beam.set_ylabel('Beam radius (µm)')
     ax_beam.set_title('Beam radius vs z')
 
-    # Lens markers
     for optic in optics:
-        if optic.get('f_base') is not None or optic.get('m0') is not None:
-            z_lens = optic['z'] * 1e3
-            ax_beam.axvline(z_lens, linestyle=':', alpha=0.6)
-            ax_beam.text(z_lens, 2800, optic['name'],
-                         rotation=90, va='top', ha='center', fontsize=9)
+        z_lens = optic['z'] * 1e3
+        ax_beam.axvline(z_lens, linestyle=':', alpha=0.6)
+        ax_beam.text(z_lens, ax_beam.get_ylim()[1]*0.95,
+                     optic['name'],
+                     rotation=90, va='top', ha='center', fontsize=9)
 
-    # ---------------- RIGHT: Focus vs Power ----------------
+    # Right panel
+    ax_focus.set_xlim(P_values.min(), P_values.max())
+    ax_focus.set_ylim(z_focus_list.min()*0.98,
+                      z_focus_list.max()*1.02)
+
+    ax_focus.set_xlabel('Power (W)')
+    ax_focus.set_ylabel('Focus after telescope (mm)')
+    ax_focus.set_title('Focus position vs Power')
+
     focus_line, = ax_focus.plot([], [], lw=2)
     focus_point, = ax_focus.plot([], [], 'o')
 
-    ax_focus.set_xlim(P_values.min(), P_values.max())
-    ax_focus.set_xlabel('Power (W)')
-    ax_focus.set_ylabel('Focus z after L2 (mm)')
-    ax_focus.set_title('Focus shift vs Power')
+    # Animation
+    def init():
+        beam_line.set_ydata(w_frames[0])
+        focus_line.set_data([], [])
+        focus_point.set_data([], [])
+        return beam_line, focus_line, focus_point, power_text
 
-    # Precompute correct y-limits in mm
-    z_all_mm = []
-    for P in P_values:
-        f1_eff = effective_focalLength(f1, P, m0, wL1)
-        wL2 = waist_L2(w0, f1_eff, f1+f2)
-        f2_eff = effective_focalLength(f2, P, m0, wL2)
-        z0_after, _ = waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
-        z_all_mm.append(z0_after * 1e3)
+    def update(i):
+        beam_line.set_ydata(w_frames[i])
+        power_text.set_text(f'Power = {P_values[i]:.2f} W')
 
-    ax_focus.set_ylim(min(z_all_mm), max(z_all_mm)*1.3)
-
-    P_trace = []
-    z_trace = []
-
-    # -------------------------------------------------------
-
-    def update(frame):
-
-        P = P_values[frame]
-
-        # ---- LEFT: beam ----
-        optics_frame = [o.copy() for o in optics]
-        w_z, _ = propagate(optics_frame, z_plot, w0, wavelength, P)
-        beam_line.set_ydata(w_z*1e6)
-        power_text.set_text(f'Power = {P:.2f} W')
-
-        # ---- RIGHT: analytic focus ----
-        f1_eff = effective_focalLength(f1, P, m0, wL1)
-        wL2 = waist_L2(w0, f1_eff, f1+f2)
-        f2_eff = effective_focalLength(f2, P, m0, wL2)
-        z0_after, _ = waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
-
-        z_mm = z0_after * 1e3
-        P_trace.append(P)
-        z_trace.append(z_mm)
-
-        focus_line.set_data(P_trace, z_trace)
-        focus_point.set_data([P], [z_mm])
+        focus_line.set_data(P_values[:i+1],
+                            z_focus_list[:i+1])
+        focus_point.set_data(P_values[i],
+                             z_focus_list[i])
 
         return beam_line, focus_line, focus_point, power_text
 
@@ -645,8 +598,84 @@ def AnimateBeamAndFocusVsPower(
         fig,
         update,
         frames=len(P_values),
+        init_func=init,
         interval=40,
-        blit=False   # IMPORTANT
+        blit=True
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+    return ani
+
+# Animate beam radius vs z for multiple input waists (z0) simultaneously.
+def AnimateBeamVsPowerMultipleZ0(
+        optics,
+        z_plot,
+        P_values,
+        w0,
+        z0_list,            
+        wavelength=1064e-9
+    ):
+    
+    import matplotlib.pyplot as plt
+    from matplotlib import animation
+    import numpy as np
+
+    plt.rcParams['font.size'] = 13
+
+    # Precompute beam profiles
+    print("Precomputing frames for all z0 values...")
+    w_frames = []  # shape: (num_z0, num_P, len(z_plot))
+    for z0 in z0_list:
+        w_curves = []
+        for P in P_values:
+            optics_copy = [o.copy() for o in optics]
+            w_z, _ = propagate(optics_copy, z_plot, w0, wavelength, P, z0=z0)
+            w_curves.append(w_z*1e6)  # convert to µm
+        w_frames.append(np.array(w_curves))
+    w_frames = np.array(w_frames)  # shape (num_z0, num_P, len(z_plot))
+    print("Precompute complete.")
+
+    # ------------------- Figure setup -------------------
+    fig, ax = plt.subplots(figsize=(9,5))
+    colors = plt.cm.cividis(np.linspace(0,1,len(z0_list)))
+    lines = []
+    for i, z0 in enumerate(z0_list):
+        line, = ax.plot(z_plot*1e3, w_frames[i,0], lw=2, color=colors[i], label=f'z0={z0*1e3:.1f} mm')
+        lines.append(line)
+
+    ax.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
+    ax.set_ylim(0, 1.1*np.max(w_frames))
+    ax.set_xlabel('z (mm)')
+    ax.set_ylabel('Beam radius (µm)')
+    ax.set_title('Beam radius vs z for multiple input waists')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    power_text = ax.text(0.02, 0.92, '', transform=ax.transAxes, fontsize=12)
+
+    # ------------------- Animation -------------------
+    def init():
+        for i, line in enumerate(lines):
+            line.set_ydata(w_frames[i,0])
+        power_text.set_text('')
+        return lines + [power_text]
+
+    def update(frame):
+        P = P_values[frame]
+        for i, line in enumerate(lines):
+            line.set_ydata(w_frames[i, frame])
+        power_text.set_text(f'Power = {P:.2f} W')
+        return lines + [power_text]
+
+    ani = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(P_values),
+        init_func=init,
+        interval=50,
+        blit=True
     )
 
     plt.tight_layout()
