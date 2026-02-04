@@ -6,9 +6,8 @@ import ThermalLensLibrary as TL
 plt.close('all')
 
 #%% Parameters and Optical System
-wavelength = 1064e-9     
 w0 = 1e-3
-zR_num = TL.z_R(w0, wavelength)       
+zR_num = TL.z_R(w0)       
 z0 = 0 * zR_num    
 P_list = [10, 50, 100, 250, 500]
 m0 = 4e-9
@@ -32,7 +31,7 @@ z_points = np.linspace(0, z_obs, 3000)
 # plt.figure(figsize=(9,4))
 plt.figure(figsize=(6,3))
 for P in P_list:
-    w_z,thermal_f = TL.propagate(optics, z_points, w0, wavelength, P, z0=z0)
+    w_z,thermal_f = TL.propagate(optics, z_points, w0, P, z0=z0)
     plt.plot(z_points*1e3, w_z*1e6, label=f'P={P} W')
 
 # plot optic locations
@@ -57,7 +56,6 @@ zmin_list, w_min_list = TL.find_waist_after(
     optics,
     target_name=target_name,
     w0=w0,
-    wavelength=wavelength,
     P_list=P_list,
     z_max=z_obs,
     z0=z0
@@ -70,7 +68,7 @@ w_after_dict = {}
 z_max = z_obs
 
 for P in P_list:
-    z_after, w_after = TL.beam_after_last_optic(optics, w0, wavelength, P, z0=z0, z_max=z_max)
+    z_after, w_after = TL.beam_after_last_optic(optics, w0, P, z0=z0, z_max=z_max)
     z_after_dict[P] = z_after
     w_after_dict[P] = w_after
 
@@ -165,7 +163,6 @@ z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
 #     z_plot,
 #     P_values,
 #     w0,
-#     wavelength,
 #     z0=z0_ani
 # )
 # ani.save("beam_power_animation.gif", fps=20)
@@ -188,7 +185,6 @@ ani = TL.AnimateBeamVsPowerMultipleZ0(
 #     optics,
 #     lens_name=optics[-1]['name'],
 #     w0=w0,
-#     wavelength=wavelength,
 #     P=P_target,
 #     z0=z0,
 #     z_bounds=(0.20, 0.70)
@@ -199,7 +195,7 @@ ani = TL.AnimateBeamVsPowerMultipleZ0(
 # print(f"   |dw/dz| = {best_divergence:.3e}")
 
 # z_plot = np.linspace(0.20, 0.70, 200)
-# score_plot = [TL.divergence_score(z, optics, optics[-1]['name'], w0, wavelength, P_target, z0=z0)
+# score_plot = [TL.divergence_score(z, optics, optics[-1]['name'], w0, P_target, z0=z0)
 #               for z in z_plot]
 
 # plt.figure(figsize=(7,4))
