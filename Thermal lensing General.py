@@ -128,7 +128,7 @@ import matplotlib.animation as animation
 
 
 z_plot = np.linspace(0, z_obs, 2000)
-P_values = np.linspace(1, 10000, 100)
+P_values = np.linspace(1, 5000, 100)
 
 # z_lens_positions = np.linspace(0.1, 0.4, 120)
 
@@ -175,7 +175,7 @@ ani = TL.AnimateBeamVsPowerMultipleZ0(
         z0_list
     )
 
-# ani.save("beam_power_animation.gif", fps=20)
+ani.save("beam_power_animation.gif", fps=20)
 
 #%% Find optimal L2 position to collimate at a target power
 

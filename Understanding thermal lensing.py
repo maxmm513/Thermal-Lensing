@@ -13,12 +13,12 @@ zR_num = TL.z_R(w0)
 z0 = np.array([-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num])
 f0 = np.array([125e-3, 250e-3, 350e-3, 500e-3])
 
-P = np.linspace(1,2000,500)  
+P = np.linspace(1,10000,500)  
     
 TL.Plot_SingleLensAnalysis(P, w0, m0,
     sweep_param='z0',
     sweep_values=z0,
-    fixed_value=500e-3,
+    fixed_value=-100e-3,
     focus_scale='f0',
     F1_scale=True
 )
