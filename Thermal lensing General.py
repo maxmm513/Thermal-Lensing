@@ -12,19 +12,19 @@ z0 = 0 * zR_num
 P_list = [10, 50, 100, 250, 500]
 m0 = 4e-9
 
-f1_dict = 250e-3
-f2_dict = 500e-3
-dist = f1_dict+f2_dict
+f1_dict = -500e-3
+# f2_dict = 500e-3
+# dist = f1_dict+f2_dict
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
     # {'z': 0.375, 'f_base': 0.125, 'm0': m0, 'name': '125 mm'}
     
     {'z': 0, 'f_base': f1_dict, 'm0': m0, 'name': f'{f1_dict*1e3} mm'},
-    {'z': dist, 'f_base': f2_dict, 'm0': m0, 'name': f'{f2_dict*1e3} mm'}
+    # {'z': dist, 'f_base': f2_dict, 'm0': m0, 'name': f'{f2_dict*1e3} mm'}
 ]
 
-z_obs = 5
+z_obs = 0.2
 z_points = np.linspace(0, z_obs, 3000) 
 
 #%%
@@ -127,8 +127,10 @@ plt.tight_layout()
 import matplotlib.animation as animation
 
 
-z_plot = np.linspace(0, z_obs, 3000)
-z_lens_positions = np.linspace(0.1, 0.4, 120)
+z_plot = np.linspace(0, z_obs, 2000)
+P_values = np.linspace(1, 10000, 100)
+
+# z_lens_positions = np.linspace(0.1, 0.4, 120)
 
 # ani = TL.AnimateBeamAfterLastOptic(
 #     optics,
@@ -139,9 +141,6 @@ z_lens_positions = np.linspace(0.1, 0.4, 120)
 #     w0=w0
 # )
 
-P_values = np.linspace(1, 1000, 400)
-z0_ani = 3 * zR_num
-
 # ani = TL.AnimateBeamVsPower(
 #     optics,
 #     z_plot,
@@ -150,12 +149,12 @@ z0_ani = 3 * zR_num
 # )
 
 
-f1_eff = TL.effective_focalLength(f1, P_values, m0, wL1)
+# f1_eff = TL.effective_focalLength(f1, P_values, m0, wL1)
 
-wL2 = TL.waist_L2(w0, f1_eff, f1+f2, z0=z0)
-f2_eff = TL.effective_focalLength(f2, P_values, m0, wL2)
+# wL2 = TL.waist_L2(w0, f1_eff, f1+f2, z0=z0)
+# f2_eff = TL.effective_focalLength(f2, P_values, m0, wL2)
 
-z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
+# z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
 
 
 # ani = TL.AnimateBeamAndFocusVsPower(
@@ -165,10 +164,9 @@ z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2)
 #     w0,
 #     z0=z0_ani
 # )
-# ani.save("beam_power_animation.gif", fps=20)
 
 
-z0_list = [0*zR_num, 1*zR_num, 3*zR_num]
+z0_list = [-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num]
 ani = TL.AnimateBeamVsPowerMultipleZ0(
         optics,
         z_plot,
@@ -176,6 +174,8 @@ ani = TL.AnimateBeamVsPowerMultipleZ0(
         w0,
         z0_list
     )
+
+# ani.save("beam_power_animation.gif", fps=20)
 
 #%% Find optimal L2 position to collimate at a target power
 

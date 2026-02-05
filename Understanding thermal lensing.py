@@ -23,7 +23,6 @@ TL.Plot_SingleLensAnalysis(P, w0, m0,
     F1_scale=True
 )
 
-
 #%% Ray Analysis
 
 fig, ax = plt.subplots(1,2,figsize=(8,3.5))

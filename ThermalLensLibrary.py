@@ -325,11 +325,11 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     # Figure title
     if sweep_param == 'z0':
         fixed_str = f'$f_0 = \\mathbf{{{fixed_value*1e3:.0f}\\,mm}}$'
-        sweep_str = 'z0'
+        sweep_str = '$z_0/z_R$'
     elif sweep_param == 'f0':
         fixed_str = f'$z_0 = \\mathbf{{{fixed_value/zR_input:.2f}\\,z_R}}$'
         sweep_str = 'f0'
-    fig.suptitle(f'Sweeping {sweep_str}, fixed value {fixed_str}', fontsize=14)
+    fig.suptitle(f'Scanning {sweep_str}, fixed value {fixed_str}', fontsize=14)
 
     handles, labels = [], []
 
@@ -657,9 +657,7 @@ def AnimateBeamVsPowerMultipleZ0(
         z0_list,            
     ):
     
-    import matplotlib.pyplot as plt
-    from matplotlib import animation
-    import numpy as np
+    zR = z_R(w0)
 
     plt.rcParams['font.size'] = 13
 
@@ -678,21 +676,21 @@ def AnimateBeamVsPowerMultipleZ0(
 
     # ------------------- Figure setup -------------------
     fig, ax = plt.subplots(figsize=(9,5))
-    colors = plt.cm.cividis(np.linspace(0,1,len(z0_list)))
+    colors = plt.cm.rainbow(np.linspace(0,1,len(z0_list)))
     lines = []
     for i, z0 in enumerate(z0_list):
-        line, = ax.plot(z_plot*1e3, w_frames[i,0], lw=2, color=colors[i], label=f'z0={z0*1e3:.1f} mm')
+        line, = ax.plot(z_plot*1e3, w_frames[i,0], lw=2, color=colors[i], label=f'z0/zR={z0/zR:.0f}')
         lines.append(line)
 
     ax.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
     ax.set_ylim(0, 1.1*np.max(w_frames))
+    # ax.set_ylim(0,1500)
     ax.set_xlabel('z (mm)')
     ax.set_ylabel('Beam radius (µm)')
-    ax.set_title('Beam radius vs z for multiple input waists')
-    ax.legend()
+    ax.legend(loc='upper left')
     ax.grid(True, alpha=0.3)
 
-    power_text = ax.text(0.02, 0.92, '', transform=ax.transAxes, fontsize=12)
+    power_text = ax.text(0.52, 0.92, '', transform=ax.transAxes, fontsize=12)
 
     # ------------------- Animation -------------------
     def init():
@@ -721,3 +719,4 @@ def AnimateBeamVsPowerMultipleZ0(
     plt.show()
 
     return ani
+
