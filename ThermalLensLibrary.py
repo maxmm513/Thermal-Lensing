@@ -312,6 +312,7 @@ def Plot_SingleLensAnalysis(P, w0, m0,
         fixed_value,
         focus_scale='mm',    # 'mm', 'f0', 'zR'
         F1_scale=False,      # if True, scales F1 by f0 (only for z0 scan)
+        delta_focus=False,   # 
         wavelength=1064e-9
     ):
     
@@ -362,13 +363,25 @@ def Plot_SingleLensAnalysis(P, w0, m0,
         # Focus & waist after lens
         z0_after, w0_after = waistAndLoc_afterL1(w0, F1, z0=z0)
 
-        # Scale focus for plotting
-        if focus_scale=='mm':
+        # Optional: subtract focus position @ minimum power 
+        if delta_focus:
+            z0_ref = z0_after[0]          # value at minimum power
+            z0_after = z0_after - z0_ref
+        
+        # ---- Scale focus for plotting ----
+        if focus_scale=="mm":
             y_focus = z0_after * 1e3
-        elif focus_scale=='f0':
+        elif focus_scale=="f0":
             y_focus = z0_after / f0
-        elif focus_scale=='zR':
+        elif focus_scale=="zR":
             y_focus = z0_after / zR_input
+            
+        L_scale = 5000 # generous physical length scale
+
+        mask = np.abs(z0_after) > L_scale
+        y_focus = np.where(mask, np.nan, y_focus)
+        
+
 
         # Beam divergence (mrad)
         theta = (wavelength / (np.pi * w0_after)) * 1e3
@@ -389,12 +402,18 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     axZ.set_title('Focus location after lens')
     axZ.set_xlabel('Power (W)')
     
-    if focus_scale=='mm':
-        axZ.set_ylabel("Focus after lens $z_0$' (mm)")
-    elif focus_scale=='f0':
-        axZ.set_ylabel("$z_0$'/f0")
-    elif focus_scale=='zR':
-        axZ.set_ylabel("$z_0'/z_R$")
+    if focus_scale=="mm":
+        label = "$z_0$' (mm)"
+    elif focus_scale=="f0":
+        label = "$z_0$'/$f_0$"
+    elif focus_scale=="zR":
+        label = "$z_0$'/$z_R$"
+    
+    if delta_focus:
+        label = r'$\Delta$' + label
+    
+    axZ.set_ylabel(label)
+
     
     axW.set_title('Waist after lens')
     axW.set_xlabel('Power (W)')
