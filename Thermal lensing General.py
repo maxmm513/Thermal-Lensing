@@ -12,19 +12,19 @@ z0 = 0 * zR_num
 P_list = [10, 50, 100, 250, 500]
 m0 = 4e-9
 
-f1_dict = -500e-3
-# f2_dict = 500e-3
-# dist = f1_dict+f2_dict
+f1_dict = 500e-3
+f2_dict = 250e-3
+dist = f1_dict+f2_dict
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
     # {'z': 0.375, 'f_base': 0.125, 'm0': m0, 'name': '125 mm'}
     
     {'z': 0, 'f_base': f1_dict, 'm0': m0, 'name': f'{f1_dict*1e3} mm'},
-    # {'z': dist, 'f_base': f2_dict, 'm0': m0, 'name': f'{f2_dict*1e3} mm'}
+    {'z': dist, 'f_base': f2_dict, 'm0': m0, 'name': f'{f2_dict*1e3} mm'}
 ]
 
-z_obs = 0.2
+z_obs = 1.8
 z_points = np.linspace(0, z_obs, 3000) 
 
 #%%
@@ -92,43 +92,24 @@ plt.tight_layout()
 
 #%% Analytical calculation
 
-Pow = np.linspace(1, 5000, 10000)
+P_dense = np.linspace(1, 1000, 2000)
 
-f1 = optics[0]['f_base']
-f2 = optics[1]['f_base']
+z0_list = [-3*zR_num, -1*zR_num, 0, 1*zR_num, 3*zR_num]
 
-z0_scan = np.array([0, 1, 3])
+TL.Plot_FullSystemDiagnostics(
+    optics,
+    P_dense,
+    w0,
+    z0_list
+)
 
-fig, ax = plt.subplots(1,2, figsize=(7,4))
-for j in z0_scan:
-
-    wL1 = TL.waist_L1(w0, j*zR_num)
-    f1_eff = TL.effective_focalLength(f1, Pow, m0, wL1)
-    
-    wL2 = TL.waist_L2(w0, f1_eff, f1+f2, z0=j*zR_num)
-    f2_eff = TL.effective_focalLength(f2, Pow, m0, wL2)
-    
-    z0_after, w0_after = TL.waistAndLoc_afterTele(w0, f1_eff, f2_eff, f1+f2, z0=j*zR_num)
-    Pmin, Pmax, _, _ = TL.FindExtrema(Pow, z0_after)
-    
-    ax[0].plot(Pow, z0_after*1e3)
-    ax[0].set_ylabel('Focus after lens (mm)');
-    ax[0].set_xlabel('Power (W)');
-    ax[0].grid(True, alpha=0.3)
-    
-    ax[1].plot(Pow, w0_after*1e6, label=f'z0/zR={j}')
-    ax[1].set_ylabel('Waist after telescope (um)'); 
-    ax[1].set_xlabel('Power (W)'); 
-    ax[1].grid(True, alpha=0.3)
-    ax[1].legend()
-plt.tight_layout()
 
 #%% Animation
 import matplotlib.animation as animation
 
 
 z_plot = np.linspace(0, z_obs, 2000)
-P_values = np.linspace(1, 5000, 100)
+P_values = np.linspace(1, 1000, 100)
 
 # z_lens_positions = np.linspace(0.1, 0.4, 120)
 
@@ -175,7 +156,7 @@ ani = TL.AnimateBeamVsPowerMultipleZ0(
         z0_list
     )
 
-ani.save("beam_power_animation.gif", fps=20)
+# ani.save("beam_power_animation.gif", fps=20)
 
 #%% Find optimal L2 position to collimate at a target power
 

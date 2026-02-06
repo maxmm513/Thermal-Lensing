@@ -438,6 +438,147 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     )
 
     plt.tight_layout(rect=[0,0,0.88,1])
+    
+    
+
+def Plot_FullSystemDiagnostics(
+        optics,
+        P_values,
+        w0,
+        z0_list,
+        wavelength=1064e-9
+    ):
+
+    optics_sorted = sorted(optics, key=lambda o: o['z'])
+    L1 = optics_sorted[0]
+    L2 = optics_sorted[-1]
+
+    z1 = L1['z']
+    z2 = L2['z']
+
+    zR_input = z_R(w0)
+
+    fig, ax = plt.subplots(3, 3, figsize=(11, 8))
+
+    (
+        (axF1,   axWint,  axZint),
+        (axWL2,  axF2,    axZout),
+        (axWout, axTheta, axBlank)
+    ) = ax
+
+    # axBlank.axis('off')
+
+    for z0 in z0_list:
+
+        F1_list, F2_list = [], []
+        z_int_list, w_int_list = [], []
+        wL2_list, z_out_list = [], []
+        w_out_list, theta_list = [], []
+        z_norm_list, curvature_list = [], []
+
+        for P in P_values:
+
+            # ---------- Beam at L1 ----------
+            q = z0 + 1j * z_R(w0)
+            q = apply_matrix(q, M_free(z1))
+            w_L1 = waist_from_q(q)
+
+            f_th1 = w_L1**2 / (L1['m0'] * P)
+            F1 = 1 / (1/L1['f_base'] + 1/f_th1)
+            F1_list.append(F1)
+
+            q = apply_matrix(q, M_lens(F1))
+
+            # ---------- Intermediate waist after L1 ----------
+            z_int = -np.real(q)
+            zR_int = np.imag(q)
+            w_int = np.sqrt(wavelength/np.pi * zR_int)
+
+            z_int_list.append(z_int)
+            w_int_list.append(w_int)
+
+            # ---------- Propagate to L2 ----------
+            q = apply_matrix(q, M_free(z2 - z1))
+            w_L2 = waist_from_q(q)
+            wL2_list.append(w_L2)
+
+            # ---------- Thermal lens at L2 ----------
+            f_th2 = w_L2**2 / (L2['m0'] * P)
+            F2 = 1 / (1/L2['f_base'] + 1/f_th2)
+            F2_list.append(F2)
+
+            q = apply_matrix(q, M_lens(F2))
+
+            # ---------- Final output beam ----------
+            z_out = -np.real(q)
+            zR_out = np.imag(q)
+            
+            w_out = np.sqrt(wavelength/np.pi * zR_out)
+            theta = wavelength / (np.pi * w_out)
+            
+            curvature = np.real(1/q)        # 1/R
+            
+            z_out_list.append(z_out)
+            curvature_list.append(curvature)
+            
+            w_out_list.append(w_out)
+            theta_list.append(theta)
+
+
+        label = f'z0/zR = {z0/zR_input:.0f}'
+
+        # ----- Row 1 -----
+        axF1.plot(P_values, np.array(F1_list)*1e3, label=label)
+        axWint.plot(P_values, np.array(w_int_list)*1e6)
+        axZint.plot(P_values, np.array(z_int_list)*1e3)
+
+        # ----- Row 2 -----
+        axF2.plot(P_values, np.array(F2_list)*1e3)
+        axWL2.plot(P_values, np.array(wL2_list)*1e3)
+        axZout.plot(P_values, np.array(z_out_list)*1e3)
+
+        # ----- Row 3 -----
+        axWout.plot(P_values, np.array(w_out_list)*1e6)
+        axTheta.plot(P_values, np.array(theta_list)*1e3)
+        axBlank.plot(P_values, curvature_list)
+
+
+    # ---------- Titles ----------
+    axF1.set_title("Effective $F_1$")
+    axWint.set_title("$w_0^{int}$")
+    axZint.set_title("$z_0^{int}$")
+
+    axF2.set_title("Effective $F_2$")
+    axWL2.set_title("$w_{L2}$")
+    axZout.set_title("$z_0'$")
+
+    axWout.set_title("$w_0'$")
+    axTheta.set_title("$\\theta'$")
+    
+    axBlank.set_title("Curvature $R$")
+    axBlank.set_xlabel("Power (W)")
+    axBlank.set_ylabel("1/m")
+    axBlank.grid(True, alpha=0.3)
+
+
+    # ---------- Labels ----------
+    for a in [axF1, axF2, axWL2, axZint, axZout]:
+        a.set_ylabel("mm")
+
+    for a in [axWint, axWout]:
+        a.set_ylabel("µm")
+
+    axTheta.set_ylabel("mrad")
+
+    for a in [axF1, axWint, axZint, axF2, axWL2, axZout, axWout, axTheta]:
+        a.set_xlabel("Power (W)")
+        a.grid(True, alpha=0.3)
+
+    # fig.legend(bbox_to_anchor=(0.85, 0.3))
+    plt.tight_layout(rect=[0,0,0.92,1])
+
+
+
 
 #%% Animation
 def AnimateBeamAfterLastOptic(
@@ -701,13 +842,19 @@ def AnimateBeamVsPowerMultipleZ0(
         line, = ax.plot(z_plot*1e3, w_frames[i,0], lw=2, color=colors[i], label=f'z0/zR={z0/zR:.0f}')
         lines.append(line)
 
-    ax.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
-    ax.set_ylim(0, 1.1*np.max(w_frames))
+    ax.set_xlim(0, z_plot.max()*1e3)
+    ax.set_ylim(0, 4000)
     # ax.set_ylim(0,1500)
     ax.set_xlabel('z (mm)')
     ax.set_ylabel('Beam radius (µm)')
     ax.legend(loc='upper left')
     ax.grid(True, alpha=0.3)
+    
+    for k in range(len(optics)):
+        ax.axvline(optics[k]['z']*1e3, color='k', ls='--')
+        ax.text(optics[k]['z']*1e3, plt.ylim()[1]*0.9, optics[k]['name'],
+                 rotation=90, va='top', ha='center', fontsize=9)
+    
 
     power_text = ax.text(0.52, 0.92, '', transform=ax.transAxes, fontsize=12)
 
