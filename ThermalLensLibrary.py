@@ -574,10 +574,138 @@ def Plot_FullSystemDiagnostics(
         a.set_xlabel("Power (W)")
         a.grid(True, alpha=0.3)
 
-    # fig.legend(bbox_to_anchor=(0.85, 0.3))
+    fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
     plt.tight_layout(rect=[0,0,0.92,1])
+    
+    
+def Plot_varyTeleSpacing(
+        optics,
+        P_values,
+        w0,
+        z0_ratio,          # fixed z0/zR
+        d_values,          # lens separations to scan
+        wavelength=1064e-9
+    ):
 
+    optics_sorted = sorted(optics, key=lambda o: o['z'])
+    L1 = optics_sorted[0]
+    L2_template = optics_sorted[-1]
 
+    z1 = L1['z']
+    zR_input = z_R(w0)
+    z0 = z0_ratio * zR_input
+
+    fig, ax = plt.subplots(3, 3, figsize=(11, 8))
+
+    (
+        (axF1,   axWint,  axZint),
+        (axF2,   axWL2,   axZout),
+        (axWout, axTheta, axCurv)
+    ) = ax
+
+    for d in d_values:
+
+        z2 = z1 + d
+
+        F1_list, F2_list = [], []
+        z_int_list, w_int_list = [], []
+        wL2_list, z_out_list = [], []
+        w_out_list, theta_list = [], []
+        curvature_list = []
+
+        for P in P_values:
+
+            # ---------- Beam at L1 ----------
+            q = z0 + 1j * z_R(w0)
+            q = apply_matrix(q, M_free(z1))
+            w_L1 = waist_from_q(q)
+
+            f_th1 = w_L1**2 / (L1['m0'] * P)
+            F1 = 1 / (1/L1['f_base'] + 1/f_th1)
+            F1_list.append(F1)
+
+            q = apply_matrix(q, M_lens(F1))
+
+            # ---------- Intermediate waist ----------
+            z_int = -np.real(q)
+            zR_int = np.imag(q)
+            w_int = np.sqrt(wavelength/np.pi * zR_int)
+
+            z_int_list.append(z_int)
+            w_int_list.append(w_int)
+
+            # ---------- Propagate to L2 (variable spacing) ----------
+            q = apply_matrix(q, M_free(d))
+            w_L2 = waist_from_q(q)
+            wL2_list.append(w_L2)
+
+            # ---------- Thermal lens at L2 ----------
+            f_th2 = w_L2**2 / (L2_template['m0'] * P)
+            F2 = 1 / (1/L2_template['f_base'] + 1/f_th2)
+            F2_list.append(F2)
+
+            q = apply_matrix(q, M_lens(F2))
+
+            # ---------- Final output beam ----------
+            z_out = -np.real(q)
+            zR_out = np.imag(q)
+
+            w_out = np.sqrt(wavelength/np.pi * zR_out)
+            theta = wavelength / (np.pi * w_out)
+
+            curvature = np.real(1/q)
+
+            z_out_list.append(z_out)
+            w_out_list.append(w_out)
+            theta_list.append(theta)
+            curvature_list.append(curvature)
+
+        label = f'd = {d*1e3:.1f} mm'
+
+        # ----- Row 1 -----
+        axF1.plot(P_values, np.array(F1_list)*1e3, label=label)
+        axWint.plot(P_values, np.array(w_int_list)*1e6)
+        axZint.plot(P_values, np.array(z_int_list)*1e3)
+
+        # ----- Row 2 -----
+        axF2.plot(P_values, np.array(F2_list)*1e3)
+        axWL2.plot(P_values, np.array(wL2_list)*1e3)
+        axZout.plot(P_values, np.array(z_out_list)*1e3)
+
+        # ----- Row 3 -----
+        axWout.plot(P_values, np.array(w_out_list)*1e6)
+        axTheta.plot(P_values, np.array(theta_list)*1e3)
+        axCurv.plot(P_values, curvature_list)
+
+    # ---------- Titles ----------
+    axF1.set_title("Effective $F_1$")
+    axWint.set_title("$w_0^{int}$")
+    axZint.set_title("$z_0^{int}$")
+
+    axF2.set_title("Effective $F_2$")
+    axWL2.set_title("$w_{L2}$")
+    axZout.set_title("$z_0'$")
+
+    axWout.set_title("$w_0'$")
+    axTheta.set_title("$\\theta'$")
+    axCurv.set_title("Curvature $1/R$")
+
+    # ---------- Labels ----------
+    for a in [axF1, axF2, axWL2, axZint, axZout]:
+        a.set_ylabel("mm")
+
+    for a in [axWint, axWout]:
+        a.set_ylabel("µm")
+
+    axTheta.set_ylabel("mrad")
+    axCurv.set_ylabel("1/m")
+
+    for a in ax.flatten():
+        a.set_xlabel("Power (W)")
+        a.grid(True, alpha=0.3)
+
+    fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
+    plt.tight_layout(rect=[0,0,0.92,1])
 
 
 #%% Animation
@@ -843,7 +971,7 @@ def AnimateBeamVsPowerMultipleZ0(
         lines.append(line)
 
     ax.set_xlim(0, z_plot.max()*1e3)
-    ax.set_ylim(0, 4000)
+    ax.set_ylim(0, 5000)
     # ax.set_ylim(0,1500)
     ax.set_xlabel('z (mm)')
     ax.set_ylabel('Beam radius (µm)')

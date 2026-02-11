@@ -10,21 +10,28 @@ w0 = 1e-3
 zR_num = TL.z_R(w0)       
 z0 = 0 * zR_num    
 P_list = [10, 50, 100, 250, 500]
-m0 = 4e-9
+
+m01 = 4e-9
+m02 = m01
+m03 = m01
 
 f1_dict = 500e-3
 f2_dict = 250e-3
 dist = f1_dict+f2_dict
 
+f3_dict = 250e-3
+dist2 = f2_dict+f3_dict * 3
+
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
     # {'z': 0.375, 'f_base': 0.125, 'm0': m0, 'name': '125 mm'}
     
-    {'z': 0, 'f_base': f1_dict, 'm0': m0, 'name': f'{f1_dict*1e3} mm'},
-    {'z': dist, 'f_base': f2_dict, 'm0': m0, 'name': f'{f2_dict*1e3} mm'}
+    {'z': 0, 'f_base': f1_dict, 'm0': m01, 'name': f'{f1_dict*1e3} mm'},
+    {'z': dist, 'f_base': f2_dict, 'm0': m02, 'name': f'{f2_dict*1e3} mm'},
+    {'z': dist+dist2, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
 ]
 
-z_obs = 1.8
+z_obs = 2.5
 z_points = np.linspace(0, z_obs, 3000) 
 
 #%%
@@ -96,12 +103,18 @@ P_dense = np.linspace(1, 1000, 2000)
 
 z0_list = [-3*zR_num, -1*zR_num, 0, 1*zR_num, 3*zR_num]
 
-TL.Plot_FullSystemDiagnostics(
-    optics,
-    P_dense,
-    w0,
-    z0_list
-)
+TL.Plot_FullSystemDiagnostics(optics, P_dense, w0, z0_list)
+
+# d_values = np.linspace(0.25, 1.25, 6)
+
+# TL.Plot_varyTeleSpacing(
+#     optics,
+#     P_dense,
+#     w0,
+#     z0_ratio = 3,
+#     d_values = d_values
+# )
+
 
 
 #%% Animation
