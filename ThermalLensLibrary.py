@@ -75,11 +75,11 @@ def q_after_last_optic(optics, w0, P, z0=0):
 #%% use Gaussian beam analysis to simulate general optical system
 
 def propagate(optics, z_points, w0, P, z0=0):
-    """
+    '''
     General Gaussian propagation with waist located z0 BEFORE first optic.
     z0 > 0  => converging beam at first optic
     z0 < 0  => diverging beam at first optic
-    """
+    '''
 
     zR = z_R(w0)
 
@@ -137,7 +137,7 @@ def find_waist_after(optics, target_name, w0, P_list, z0=0,
     # Locate the optical element by name
     matches = [o for o in optics if o['name'] == target_name]
     if len(matches) == 0:
-        raise ValueError(f"No optic found with name {target_name!r}")
+        raise ValueError(f'No optic found with name {target_name!r}')
     z_target = matches[0]['z']
 
     z_points = np.linspace(z_target, z_max, N)
@@ -369,11 +369,11 @@ def Plot_SingleLensAnalysis(P, w0, m0,
             z0_after = z0_after - z0_ref
         
         # ---- Scale focus for plotting ----
-        if focus_scale=="mm":
+        if focus_scale=='mm':
             y_focus = z0_after * 1e3
-        elif focus_scale=="f0":
+        elif focus_scale=='f0':
             y_focus = z0_after / f0
-        elif focus_scale=="zR":
+        elif focus_scale=='zR':
             y_focus = z0_after / zR_input
             
         L_scale = 5000 # generous physical length scale
@@ -402,12 +402,12 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     axZ.set_title('Focus location after lens')
     axZ.set_xlabel('Power (W)')
     
-    if focus_scale=="mm":
-        label = "$z_0$' (mm)"
-    elif focus_scale=="f0":
-        label = "$z_0$'/$f_0$"
-    elif focus_scale=="zR":
-        label = "$z_0$'/$z_R$"
+    if focus_scale=='mm':
+        label = '$z_0^\prime$ (mm)'
+    elif focus_scale=='f0':
+        label = '$z_0^\prime$/$f_0$'
+    elif focus_scale=='zR':
+        label = '$z_0^\prime$/$z_R$'
     
     if delta_focus:
         label = r'$\Delta$' + label
@@ -417,11 +417,11 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     
     axW.set_title('Waist after lens')
     axW.set_xlabel('Power (W)')
-    axW.set_ylabel("$w_0$' (µm)")
+    axW.set_ylabel('$w_0^\prime$ (µm)')
     
     axTheta.set_title('Divergence after lens')
-    axTheta.set_xlabel("Power (W)")
-    axTheta.set_ylabel("θ' (mrad)")
+    axTheta.set_xlabel('Power (W)')
+    axTheta.set_ylabel('$θ^\prime$ (mrad)')
 
     # Grid
     for a in [axF, axZ, axW, axTheta]:
@@ -483,8 +483,7 @@ def Plot_FullSystemDiagnostics(
             q = apply_matrix(q, M_free(z1))
             w_L1 = waist_from_q(q)
 
-            f_th1 = w_L1**2 / (L1['m0'] * P)
-            F1 = 1 / (1/L1['f_base'] + 1/f_th1)
+            F1 = effective_focalLength(L1['f_base'], P, L1['m0'], w_L1)
             F1_list.append(F1)
 
             q = apply_matrix(q, M_lens(F1))
@@ -503,8 +502,7 @@ def Plot_FullSystemDiagnostics(
             wL2_list.append(w_L2)
 
             # ---------- Thermal lens at L2 ----------
-            f_th2 = w_L2**2 / (L2['m0'] * P)
-            F2 = 1 / (1/L2['f_base'] + 1/f_th2)
+            F2 = effective_focalLength(L2['f_base'], P, L2['m0'], w_L2)
             F2_list.append(F2)
 
             q = apply_matrix(q, M_lens(F2))
@@ -544,168 +542,237 @@ def Plot_FullSystemDiagnostics(
 
 
     # ---------- Titles ----------
-    axF1.set_title("Effective $F_1$")
-    axWint.set_title("$w_0^{int}$")
-    axZint.set_title("$z_0^{int}$")
+    axF1.set_title('Effective $F_1$')
+    axWint.set_title('$w_0^{int}$')
+    axZint.set_title('$z_0^{int}$')
 
-    axF2.set_title("Effective $F_2$")
-    axWL2.set_title("$w_{L2}$")
-    axZout.set_title("$z_0'$")
+    axF2.set_title('Effective $F_2$')
+    axWL2.set_title('$w_{L2}$')
+    axZout.set_title('$z_0^\prime$')
 
-    axWout.set_title("$w_0'$")
-    axTheta.set_title("$\\theta'$")
+    axWout.set_title('$w_0^\prime$')
+    axTheta.set_title('$θ^\prime$')
     
-    axBlank.set_title("Curvature $R$")
-    axBlank.set_xlabel("Power (W)")
-    axBlank.set_ylabel("1/m")
+    axBlank.set_title('Curvature $R$')
+    axBlank.set_xlabel('Power (W)')
+    axBlank.set_ylabel('1/m')
     axBlank.grid(True, alpha=0.3)
 
 
     # ---------- Labels ----------
     for a in [axF1, axF2, axWL2, axZint, axZout]:
-        a.set_ylabel("mm")
+        a.set_ylabel('mm')
 
     for a in [axWint, axWout]:
-        a.set_ylabel("µm")
+        a.set_ylabel('µm')
 
-    axTheta.set_ylabel("mrad")
+    axTheta.set_ylabel('mrad')
 
     for a in [axF1, axWint, axZint, axF2, axWL2, axZout, axWout, axTheta]:
-        a.set_xlabel("Power (W)")
+        a.set_xlabel('Power (W)')
         a.grid(True, alpha=0.3)
 
     fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
     plt.tight_layout(rect=[0,0,0.92,1])
     
     
-def Plot_varyTeleSpacing(
+def Plot_3Lens_DistScan(
         optics,
         P_values,
         w0,
-        z0_ratio,          # fixed z0/zR
-        d_values,          # lens separations to scan
+        z0,                     # fixed z0 value
+        D_list,
+        delta_focus=False,      # display z0', z0'' or change in z0',z0''
         wavelength=1064e-9
     ):
 
-    optics_sorted = sorted(optics, key=lambda o: o['z'])
+    optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
+
     L1 = optics_sorted[0]
-    L2_template = optics_sorted[-1]
+    L2 = optics_sorted[1]
+    L3_template = optics_sorted[2]
 
     z1 = L1['z']
-    zR_input = z_R(w0)
-    z0 = z0_ratio * zR_input
+    z2 = L2['z']
 
-    fig, ax = plt.subplots(3, 3, figsize=(11, 8))
+    fig, ax = plt.subplots(3, 3, figsize=(12, 9))
 
     (
-        (axF1,   axWint,  axZint),
-        (axF2,   axWL2,   axZout),
-        (axWout, axTheta, axCurv)
+        (axZ2, axW2, axWL3),
+        (axF3, axZ3, axW3),
+        (axTheta3, axBlank1, axBlank2)
     ) = ax
 
-    for d in d_values:
+    for D in D_list:
 
-        z2 = z1 + d
-
-        F1_list, F2_list = [], []
-        z_int_list, w_int_list = [], []
-        wL2_list, z_out_list = [], []
-        w_out_list, theta_list = [], []
-        curvature_list = []
+        z2_list, w2_list = [], []
+        z3_list, w3_list = [], []
+        wL3_list, F3_list, theta3_list = [], [], []
 
         for P in P_values:
 
-            # ---------- Beam at L1 ----------
-            q = z0 + 1j * z_R(w0)
+            q = z0 + 1j*z_R(w0)
+
+            # ----- L1 -----
             q = apply_matrix(q, M_free(z1))
             w_L1 = waist_from_q(q)
-
             f_th1 = w_L1**2 / (L1['m0'] * P)
             F1 = 1 / (1/L1['f_base'] + 1/f_th1)
-            F1_list.append(F1)
-
             q = apply_matrix(q, M_lens(F1))
 
-            # ---------- Intermediate waist ----------
-            z_int = -np.real(q)
-            zR_int = np.imag(q)
-            w_int = np.sqrt(wavelength/np.pi * zR_int)
-
-            z_int_list.append(z_int)
-            w_int_list.append(w_int)
-
-            # ---------- Propagate to L2 (variable spacing) ----------
-            q = apply_matrix(q, M_free(d))
+            # ----- L2 -----
+            q = apply_matrix(q, M_free(z2 - z1))
             w_L2 = waist_from_q(q)
-            wL2_list.append(w_L2)
-
-            # ---------- Thermal lens at L2 ----------
-            f_th2 = w_L2**2 / (L2_template['m0'] * P)
-            F2 = 1 / (1/L2_template['f_base'] + 1/f_th2)
-            F2_list.append(F2)
-
+            f_th2 = w_L2**2 / (L2['m0'] * P)
+            F2 = 1 / (1/L2['f_base'] + 1/f_th2)
             q = apply_matrix(q, M_lens(F2))
 
-            # ---------- Final output beam ----------
-            z_out = -np.real(q)
-            zR_out = np.imag(q)
+            # Waist after L2
+            z0_2 = -np.real(q)
+            zR_2 = np.imag(q)
+            w0_2 = np.sqrt(wavelength/np.pi * zR_2)
 
-            w_out = np.sqrt(wavelength/np.pi * zR_out)
-            theta = wavelength / (np.pi * w_out)
+            z2_list.append(z0_2)
+            w2_list.append(w0_2)
 
-            curvature = np.real(1/q)
+            # ----- propagate to L3 -----
+            q = apply_matrix(q, M_free(D))
+            w_L3 = waist_from_q(q)
+            wL3_list.append(w_L3)
 
-            z_out_list.append(z_out)
-            w_out_list.append(w_out)
-            theta_list.append(theta)
-            curvature_list.append(curvature)
+            # ----- L3 -----
+            f_th3 = w_L3**2 / (L3_template['m0'] * P)
+            F3 = 1 / (1/L3_template['f_base'] + 1/f_th3)
+            F3_list.append(F3)
 
-        label = f'd = {d*1e3:.1f} mm'
+            q = apply_matrix(q, M_lens(F3))
 
-        # ----- Row 1 -----
-        axF1.plot(P_values, np.array(F1_list)*1e3, label=label)
-        axWint.plot(P_values, np.array(w_int_list)*1e6)
-        axZint.plot(P_values, np.array(z_int_list)*1e3)
+            # Waist after L3
+            z0_3 = -np.real(q)
+            zR_3 = np.imag(q)
+            w0_3 = np.sqrt(wavelength/np.pi * zR_3)
+            theta3 = wavelength / (np.pi * w0_3)
 
-        # ----- Row 2 -----
-        axF2.plot(P_values, np.array(F2_list)*1e3)
-        axWL2.plot(P_values, np.array(wL2_list)*1e3)
-        axZout.plot(P_values, np.array(z_out_list)*1e3)
+            z3_list.append(z0_3)
+            w3_list.append(w0_3)
+            theta3_list.append(theta3)
 
-        # ----- Row 3 -----
-        axWout.plot(P_values, np.array(w_out_list)*1e6)
-        axTheta.plot(P_values, np.array(theta_list)*1e3)
-        axCurv.plot(P_values, curvature_list)
+        # Convert to arrays
+        z2_arr = np.array(z2_list)
+        z3_arr = np.array(z3_list)
 
-    # ---------- Titles ----------
-    axF1.set_title("Effective $F_1$")
-    axWint.set_title("$w_0^{int}$")
-    axZint.set_title("$z_0^{int}$")
+        # ----- Optional delta focus -----
+        if delta_focus:
+            z2_arr = z2_arr - z2_arr[0]
+            z3_arr = z3_arr - z3_arr[0]
 
-    axF2.set_title("Effective $F_2$")
-    axWL2.set_title("$w_{L2}$")
-    axZout.set_title("$z_0'$")
+        label = f'D = {D*1e3:.0f} mm'
 
-    axWout.set_title("$w_0'$")
-    axTheta.set_title("$\\theta'$")
-    axCurv.set_title("Curvature $1/R$")
+        # ---------- Row 1 ----------
+        axZ2.plot(P_values, z2_arr*1e3, label=label)
+        axW2.plot(P_values, np.array(w2_list)*1e6)
+        axWL3.plot(P_values, np.array(wL3_list)*1e3)
 
-    # ---------- Labels ----------
-    for a in [axF1, axF2, axWL2, axZint, axZout]:
-        a.set_ylabel("mm")
+        # ---------- Row 2 ----------
+        axF3.plot(P_values, np.array(F3_list)*1e3)
+        axZ3.plot(P_values, z3_arr*1e3)
+        axW3.plot(P_values, np.array(w3_list)*1e6)
 
-    for a in [axWint, axWout]:
-        a.set_ylabel("µm")
+        # ---------- Row 3 ----------
+        axTheta3.plot(P_values, np.array(theta3_list)*1e3)
 
-    axTheta.set_ylabel("mrad")
-    axCurv.set_ylabel("1/m")
+    # ================= Formatting =================
 
-    for a in ax.flatten():
-        a.set_xlabel("Power (W)")
-        a.grid(True, alpha=0.3)
+    axZ2.set_title('$z_0^\prime$')
+    axW2.set_title('$w_0^\prime$')
+    axWL3.set_title('$w_{L3}$')
 
-    fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
-    plt.tight_layout(rect=[0,0,0.92,1])
+    axF3.set_title('Effective $F_3$')
+    axZ3.set_title('$z_0^{\prime\prime}$')
+    axW3.set_title('$w_0^{\prime\prime}$')
+
+    axTheta3.set_title('$θ^{\prime\prime}$')
+
+    # Y labels
+    if delta_focus:
+        axZ2.set_ylabel('$\Delta z_0^{\prime}$ (mm)')
+        axZ3.set_ylabel('$\Delta z_0^{\prime\prime}$ (mm)')
+        
+        axZ2.set_title('$\Delta z_0^{\prime}$')
+        axZ3.set_title('$\Delta z_0^{\prime\prime}$')
+    else:
+        axZ2.set_ylabel('$z_0^{\prime}$ (mm)')
+        axZ3.set_ylabel('$z_0^{\prime\prime}$ (mm)')
+
+    axW2.set_ylabel('µm')
+    axW3.set_ylabel('µm')
+    axWL3.set_ylabel('mm')
+    axF3.set_ylabel('mm')
+    axTheta3.set_ylabel('mrad')
+
+    for row in ax:
+        for a in row:
+            a.set_xlabel('Power (W)')
+            a.grid(True, alpha=0.3)
+
+    fig.legend(bbox_to_anchor=(1.02, 0.9))
+    plt.tight_layout(rect=[0,0,0.9,1])
+
+#%%
+# RMS drift of z0'' values after final lens vs P
+def delta_z3_score(
+        D,
+        optics,
+        P_values,
+        w0,
+        z0,
+        wavelength=1064e-9
+    ):
+
+    optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
+    L1, L2, L3 = optics_sorted
+
+    z1 = L1['z']
+    z2 = L2['z']
+
+    z3 = z2 + D
+
+    z3_list = []
+
+    for P in P_values:
+
+        q = z0 + 1j*z_R(w0)
+
+        # ---- L1 ----
+        q = apply_matrix(q, M_free(z1))
+        w_L1 = waist_from_q(q)
+        F1 = effective_focalLength(L1['f_base'], P, L1['m0'], w_L1)
+        q = apply_matrix(q, M_lens(F1))
+
+        # ---- L2 ----
+        q = apply_matrix(q, M_free(z2 - z1))
+        w_L2 = waist_from_q(q)
+        F2 = effective_focalLength(L2['f_base'], P, L2['m0'], w_L2)
+        q = apply_matrix(q, M_lens(F2))
+
+        # ---- propagate to L3 ----
+        q = apply_matrix(q, M_free(D))
+        w_L3 = waist_from_q(q)
+        F3 = effective_focalLength(L3['f_base'], P, L3['m0'], w_L3)
+        q = apply_matrix(q, M_lens(F3))
+
+        z0_3 = -np.real(q)
+        z3_list.append(z0_3)
+
+    z3_arr = np.array(z3_list)
+
+    # subtract value at lowest power
+    dz = z3_arr - z3_arr[0]
+
+    rms = np.sqrt(np.mean(dz**2))
+
+    return rms
+
 
 
 #%% Animation
@@ -750,7 +817,7 @@ def AnimateBeamAfterLastOptic(
 
         line.set_ydata(w_z*1e6)
         lens_marker.set_xdata([z_new*1e3, z_new*1e3])
-        text.set_text(f"{lens_to_move} at z = {z_new*1e3:.2f} mm")
+        text.set_text(f'{lens_to_move} at z = {z_new*1e3:.2f} mm')
 
         return line, lens_marker, text
 
@@ -815,7 +882,7 @@ def AnimateBeamVsPower(
         w_z, _ = propagate(optics_frame, z_plot, w0, P, z0=z0)
 
         line.set_ydata(w_z*1e6)
-        text.set_text(f"Power = {P:.2f} W")
+        text.set_text(f'Power = {P:.2f} W')
 
         return line, text
 
@@ -842,7 +909,7 @@ def AnimateBeamAndFocusVsPower(
 
     plt.rcParams['font.size'] = 13
 
-    print("Precomputing frames (fast exact method)...")
+    print('Precomputing frames (fast exact method)...')
 
     # Precompute beam profiles and exact waist positions
     w_frames = []
@@ -865,7 +932,7 @@ def AnimateBeamAndFocusVsPower(
     w_frames = np.array(w_frames)
     z_focus_list = np.array(z_focus_list)
 
-    print("Precompute complete.")
+    print('Precompute complete.')
 
     # ------------------------------------------------------------
     # Figure
@@ -950,7 +1017,7 @@ def AnimateBeamVsPowerMultipleZ0(
     plt.rcParams['font.size'] = 13
 
     # Precompute beam profiles
-    print("Precomputing frames for all z0 values...")
+    print('Precomputing frames for all z0 values...')
     w_frames = []  # shape: (num_z0, num_P, len(z_plot))
     for z0 in z0_list:
         w_curves = []
@@ -960,7 +1027,7 @@ def AnimateBeamVsPowerMultipleZ0(
             w_curves.append(w_z*1e6)  # convert to µm
         w_frames.append(np.array(w_curves))
     w_frames = np.array(w_frames)  # shape (num_z0, num_P, len(z_plot))
-    print("Precompute complete.")
+    print('Precompute complete.')
 
     # ------------------- Figure setup -------------------
     fig, ax = plt.subplots(figsize=(9,5))

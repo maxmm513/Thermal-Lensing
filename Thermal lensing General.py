@@ -15,12 +15,12 @@ m01 = 4e-9
 m02 = m01
 m03 = m01
 
-f1_dict = 500e-3
-f2_dict = 250e-3
+f1_dict = 200e-3
+f2_dict = 50e-3
 dist = f1_dict+f2_dict
 
-f3_dict = 250e-3
-dist2 = f2_dict+f3_dict * 3
+f3_dict = 350e-3
+dist2 = dist + 3
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
@@ -31,7 +31,7 @@ optics = [
     {'z': dist+dist2, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
 ]
 
-z_obs = 2.5
+z_obs = dist2 + 1.5
 z_points = np.linspace(0, z_obs, 3000) 
 
 #%%
@@ -97,23 +97,37 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
 
+#%%
+from scipy.optimize import minimize_scalar
+
+P_range = np.linspace(1, 200, 500)
+
+result = minimize_scalar(
+    lambda D: TL.delta_z3_score(D, optics, P_range, w0, z0),
+    bounds=(0.01, 2.5),
+    method='bounded'
+)
+
+D_opt = result.x
+
+print("Optimal D (mm):", D_opt*1e3)
+print("RMS drift (mm):", result.fun*1e3)
+
+
 #%% Analytical calculation
 
-P_dense = np.linspace(1, 1000, 2000)
+P_dense = np.linspace(1, 200, 1000)
 
 z0_list = [-3*zR_num, -1*zR_num, 0, 1*zR_num, 3*zR_num]
 
 TL.Plot_FullSystemDiagnostics(optics, P_dense, w0, z0_list)
 
-# d_values = np.linspace(0.25, 1.25, 6)
 
-# TL.Plot_varyTeleSpacing(
-#     optics,
-#     P_dense,
-#     w0,
-#     z0_ratio = 3,
-#     d_values = d_values
-# )
+
+D_list = [0.25, 0.5, 0.75, 1, D_opt]
+
+TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=1)
+
 
 
 
@@ -122,7 +136,7 @@ import matplotlib.animation as animation
 
 
 z_plot = np.linspace(0, z_obs, 2000)
-P_values = np.linspace(1, 1000, 100)
+P_values = np.linspace(1, 200, 100)
 
 # z_lens_positions = np.linspace(0.1, 0.4, 120)
 
