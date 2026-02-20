@@ -9,18 +9,18 @@ plt.close('all')
 w0 = 1e-3
 zR_num = TL.z_R(w0)       
 z0 = 0 * zR_num    
-P_list = [10, 50, 100, 250, 500]
+P_list = [1, 25, 50, 100, 200]
 
 m01 = 4e-9
 m02 = m01
 m03 = m01
 
-f1_dict = 200e-3
-f2_dict = 50e-3
-dist = f1_dict+f2_dict
+f1_dict = 500e-3
+f2_dict = 125e-3
+dist = 0.5 #f1_dict+f2_dict
 
 f3_dict = 350e-3
-dist2 = dist + 3
+dist2 = dist + 0.93 #3
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
@@ -31,7 +31,7 @@ optics = [
     {'z': dist+dist2, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
 ]
 
-z_obs = dist2 + 1.5
+z_obs = dist+dist2 + 1.2
 z_points = np.linspace(0, z_obs, 3000) 
 
 #%%
@@ -49,7 +49,7 @@ for elem in optics:
 
 plt.xlabel('z (mm)', fontsize=13)
 plt.ylabel('Beam radius (µm)', fontsize=13)
-plt.legend()
+plt.legend(fontsize=10)
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
@@ -92,43 +92,32 @@ for j in range(len(P_list)):
 
 plt.xlabel('Distance after final optic (mm)')
 plt.ylabel('Beam radius (µm)')
-plt.legend()
+plt.legend(fontsize=9)
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
-
 #%%
-from scipy.optimize import minimize_scalar
-
-P_range = np.linspace(1, 200, 500)
-
-result = minimize_scalar(
-    lambda D: TL.delta_z3_score(D, optics, P_range, w0, z0),
-    bounds=(0.01, 2.5),
-    method='bounded'
-)
-
-D_opt = result.x
-
-print("Optimal D (mm):", D_opt*1e3)
-print("RMS drift (mm):", result.fun*1e3)
-
-
-#%% Analytical calculation
-
-P_dense = np.linspace(1, 200, 1000)
+P_dense = np.linspace(0.2, 200, 1000)
 
 z0_list = [-3*zR_num, -1*zR_num, 0, 1*zR_num, 3*zR_num]
+TL.Plot_2Lens_Diagnostics(optics, P_dense, w0, z0_list)
 
-TL.Plot_FullSystemDiagnostics(optics, P_dense, w0, z0_list)
+D_list = [0.25, 0.75, 1, 2.5]
+TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=0)
+
+#%%
+
+P_rms = np.linspace(0,200,25)
+x0 = [dist, 1]   # initial guesses [d_12, d_23] (m)
 
 
-
-D_list = [0.25, 0.5, 0.75, 1, D_opt]
-
-TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=1)
-
-
+TL.Plot_rmsMap(
+    optics, P_rms, w0, z0,
+    d_range=(0.1, 1.5),
+    D_range=(0.1, 1.5),
+    mode='both',
+    weights = (1,1e4)
+    )
 
 
 #%% Animation
@@ -136,7 +125,7 @@ import matplotlib.animation as animation
 
 
 z_plot = np.linspace(0, z_obs, 2000)
-P_values = np.linspace(1, 200, 100)
+P_values = np.linspace(1, 500, 100)
 
 # z_lens_positions = np.linspace(0.1, 0.4, 120)
 

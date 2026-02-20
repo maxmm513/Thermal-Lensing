@@ -298,7 +298,6 @@ def Plot_z0w0_afterTelescope(P, z0_after, w0_after):
     
 #%% Single Lens Analysis
 
-
 # Single lens analysis in 2x2 figure
 # top left: F1 vs P (option to scale by f0)
 # top right: z0' vs P (option to scale by f0, zR, or real units)
@@ -312,7 +311,7 @@ def Plot_SingleLensAnalysis(P, w0, m0,
         fixed_value,
         focus_scale='mm',    # 'mm', 'f0', 'zR'
         F1_scale=False,      # if True, scales F1 by f0 (only for z0 scan)
-        delta_focus=False,   # 
+        delta_focus=False,   # if True, plot change in focus position relative to low power value
         wavelength=1064e-9
     ):
     
@@ -360,7 +359,7 @@ def Plot_SingleLensAnalysis(P, w0, m0,
             y_F1 = F1 * 1e3  # mm
             axF.set_ylabel('$F_1$ (mm)')
 
-        # Focus & waist after lens
+        # focus & waist after lens
         z0_after, w0_after = waistAndLoc_afterL1(w0, F1, z0=z0)
 
         # Optional: subtract focus position @ minimum power 
@@ -376,13 +375,11 @@ def Plot_SingleLensAnalysis(P, w0, m0,
         elif focus_scale=='zR':
             y_focus = z0_after / zR_input
             
-        L_scale = 5000 # generous physical length scale
+        L_scale = 5000
 
         mask = np.abs(z0_after) > L_scale
         y_focus = np.where(mask, np.nan, y_focus)
         
-
-
         # Beam divergence (mrad)
         theta = (wavelength / (np.pi * w0_after)) * 1e3
 
@@ -414,7 +411,6 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     
     axZ.set_ylabel(label)
 
-    
     axW.set_title('Waist after lens')
     axW.set_xlabel('Power (W)')
     axW.set_ylabel('$w_0^\prime$ (µm)')
@@ -441,12 +437,13 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     
     
 
-def Plot_FullSystemDiagnostics(
+def Plot_2Lens_Diagnostics(
         optics,
         P_values,
         w0,
         z0_list,
-        wavelength=1064e-9
+        wavelength=1064e-9,
+        scale_effF=False
     ):
 
     optics_sorted = sorted(optics, key=lambda o: o['z'])
@@ -467,14 +464,15 @@ def Plot_FullSystemDiagnostics(
     ) = ax
 
     # axBlank.axis('off')
-
+    
+    wint_fullList = []
     for z0 in z0_list:
 
         F1_list, F2_list = [], []
         z_int_list, w_int_list = [], []
         wL2_list, z_out_list = [], []
         w_out_list, theta_list = [], []
-        z_norm_list, curvature_list = [], []
+        curvature_list = []
 
         for P in P_values:
 
@@ -526,19 +524,28 @@ def Plot_FullSystemDiagnostics(
         label = f'z0/zR = {z0/zR_input:.0f}'
 
         # ----- Row 1 -----
-        axF1.plot(P_values, np.array(F1_list)*1e3, label=label)
+        if scale_effF is True:
+            axF1.plot(P_values, np.array(F1_list)/L1['f_base'], label=label)
+        else:
+            axF1.plot(P_values, np.array(F1_list)*1e3, label=label)
         axWint.plot(P_values, np.array(w_int_list)*1e6)
         axZint.plot(P_values, np.array(z_int_list)*1e3)
 
         # ----- Row 2 -----
-        axF2.plot(P_values, np.array(F2_list)*1e3)
+        if scale_effF is True:
+            axF2.plot(P_values, np.array(F2_list) / L2['f_base'])
+        else:
+            axF2.plot(P_values, np.array(F2_list)*1e3)
         axWL2.plot(P_values, np.array(wL2_list)*1e3)
         axZout.plot(P_values, np.array(z_out_list)*1e3)
+        
 
         # ----- Row 3 -----
         axWout.plot(P_values, np.array(w_out_list)*1e6)
         axTheta.plot(P_values, np.array(theta_list)*1e3)
         axBlank.plot(P_values, curvature_list)
+        
+        wint_fullList.append(np.array(w_int_list))
 
 
     # ---------- Titles ----------
@@ -562,6 +569,10 @@ def Plot_FullSystemDiagnostics(
     # ---------- Labels ----------
     for a in [axF1, axF2, axWL2, axZint, axZout]:
         a.set_ylabel('mm')
+    
+    if scale_effF is True:
+        axF1.set_ylabel('$F_1$/$f_{01}$')
+        axF2.set_ylabel('$F_2$/$f_{02}$')
 
     for a in [axWint, axWout]:
         a.set_ylabel('µm')
@@ -574,6 +585,9 @@ def Plot_FullSystemDiagnostics(
 
     fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
     plt.tight_layout(rect=[0,0,0.92,1])
+    
+    return wint_fullList
+    
     
     
 def Plot_3Lens_DistScan(
@@ -681,8 +695,6 @@ def Plot_3Lens_DistScan(
         # ---------- Row 3 ----------
         axTheta3.plot(P_values, np.array(theta3_list)*1e3)
 
-    # ================= Formatting =================
-
     axZ2.set_title('$z_0^\prime$')
     axW2.set_title('$w_0^\prime$')
     axWL3.set_title('$w_{L3}$')
@@ -694,16 +706,12 @@ def Plot_3Lens_DistScan(
     axTheta3.set_title('$θ^{\prime\prime}$')
 
     # Y labels
-    if delta_focus:
-        axZ2.set_ylabel('$\Delta z_0^{\prime}$ (mm)')
-        axZ3.set_ylabel('$\Delta z_0^{\prime\prime}$ (mm)')
-        
+    if delta_focus:        
         axZ2.set_title('$\Delta z_0^{\prime}$')
         axZ3.set_title('$\Delta z_0^{\prime\prime}$')
-    else:
-        axZ2.set_ylabel('$z_0^{\prime}$ (mm)')
-        axZ3.set_ylabel('$z_0^{\prime\prime}$ (mm)')
-
+    
+    axZ2.set_ylabel('mm')
+    axZ3.set_ylabel('mm')
     axW2.set_ylabel('µm')
     axW3.set_ylabel('µm')
     axWL3.set_ylabel('mm')
@@ -719,60 +727,142 @@ def Plot_3Lens_DistScan(
     plt.tight_layout(rect=[0,0,0.9,1])
 
 #%%
-# RMS drift of z0'' values after final lens vs P
-def delta_z3_score(
-        D,
-        optics,
-        P_values,
-        w0,
-        z0,
+
+def rms_score_3lens_2dist(x, optics, P_values, w0, z0,
+        mode="z0",          # "z0", "w0", or "both"
+        weights=(1.0, 1.0), # (z0_weight, w0_weight) if mode="both"
         wavelength=1064e-9
     ):
+    """
+    General RMS objective for a 3-lens thermal system.
 
+    x[0] = d_12  
+    x[1] = d_23
+
+    mode:
+        'z0'   : minimize RMS change in z0''
+        'w0'   : minimize RMS change in w0''
+        'both' : weighted combination
+
+    weights:
+        (a, b) used only if mode="both"
+    """
+
+    d, D = x
     optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
     L1, L2, L3 = optics_sorted
 
     z1 = L1['z']
-    z2 = L2['z']
-
-    z3 = z2 + D
 
     z3_list = []
+    w3_list = []
 
     for P in P_values:
 
-        q = z0 + 1j*z_R(w0)
+        q = z0 + 1j * z_R(w0,)
 
         # ---- L1 ----
         q = apply_matrix(q, M_free(z1))
         w_L1 = waist_from_q(q)
-        F1 = effective_focalLength(L1['f_base'], P, L1['m0'], w_L1)
+        f_th1 = w_L1**2 / (L1['m0'] * P)
+        F1 = 1 / (1 / L1['f_base'] + 1 / f_th1)
         q = apply_matrix(q, M_lens(F1))
 
         # ---- L2 ----
-        q = apply_matrix(q, M_free(z2 - z1))
+        q = apply_matrix(q, M_free(d))
         w_L2 = waist_from_q(q)
-        F2 = effective_focalLength(L2['f_base'], P, L2['m0'], w_L2)
+        f_th2 = w_L2**2 / (L2['m0'] * P)
+        F2 = 1 / (1 / L2['f_base'] + 1 / f_th2)
         q = apply_matrix(q, M_lens(F2))
 
-        # ---- propagate to L3 ----
+        # ---- L3 ----
         q = apply_matrix(q, M_free(D))
         w_L3 = waist_from_q(q)
-        F3 = effective_focalLength(L3['f_base'], P, L3['m0'], w_L3)
+        f_th3 = w_L3**2 / (L3['m0'] * P)
+        F3 = 1 / (1 / L3['f_base'] + 1 / f_th3)
         q = apply_matrix(q, M_lens(F3))
 
-        z0_3 = -np.real(q)
-        z3_list.append(z0_3)
+        # outputs
+        z3_list.append(-np.real(q))      # z0''
+        w3_list.append(waist_from_q(q))  # w0''
 
     z3_arr = np.array(z3_list)
+    w3_arr = np.array(w3_list)
 
-    # subtract value at lowest power
+    # reference at lowest power
     dz = z3_arr - z3_arr[0]
+    dw = w3_arr - w3_arr[0]
 
-    rms = np.sqrt(np.mean(dz**2))
+    if mode == "z0":
+        return np.sqrt(np.mean(dz**2))
 
-    return rms
+    if mode == "w0":
+        return np.sqrt(np.mean(dw**2))
 
+    if mode == "both":
+        a, b = weights
+        rms_z = np.sqrt(np.mean(dz**2))
+        rms_w = np.sqrt(np.mean(dw**2))
+        
+        return a * rms_z + b * rms_w
+
+    raise ValueError("mode must be 'z0' or 'w0'")
+    
+
+def Plot_rmsMap(
+        optics,
+        P_values,
+        w0,
+        z0,
+        d_range,
+        D_range,
+        mode="z0",
+        weights=(1.0, 1.0),
+        Nd=100,
+        ND=100
+    ):
+    """
+    Plots a 2D RMS map over (d, D) for a chosen metric.
+    """
+
+    d_vals = np.linspace(*d_range, Nd)
+    D_vals = np.linspace(*D_range, ND)
+
+    RMS_map = np.zeros((Nd, ND))
+
+    print(f"Computing RMS map (mode='{mode}')...")
+
+    for i, d in enumerate(d_vals):
+        for j, D in enumerate(D_vals):
+            RMS_map[i, j] = rms_score_3lens_2dist(
+                [d, D],
+                optics,
+                P_values,
+                w0,
+                z0,
+                mode=mode,
+                weights=weights
+            )
+
+    if mode == 'z0':
+        unit = 'mm'
+        scale = 1e3
+    elif mode == 'w0':
+        unit = 'um'
+        scale = 1e6
+    else:
+        unit = 'm'
+        scale=1
+
+    plt.figure()
+    cf = plt.contourf(D_vals, d_vals, RMS_map*scale, levels=100)
+    plt.xlabel("$d_{23}$ (m)")
+    plt.ylabel("$d_{12}$ (m)")
+    plt.title(f"RMS {mode}'' ({unit})")
+    plt.colorbar(cf, label="RMS value")
+    plt.tight_layout()
+
+    return d_vals, D_vals, RMS_map
 
 
 #%% Animation
