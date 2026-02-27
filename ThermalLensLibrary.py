@@ -465,7 +465,6 @@ def Plot_2Lens_Diagnostics(
 
     # axBlank.axis('off')
     
-    wint_fullList = []
     for z0 in z0_list:
 
         F1_list, F2_list = [], []
@@ -545,7 +544,6 @@ def Plot_2Lens_Diagnostics(
         axTheta.plot(P_values, np.array(theta_list)*1e3)
         axBlank.plot(P_values, curvature_list)
         
-        wint_fullList.append(np.array(w_int_list))
 
 
     # ---------- Titles ----------
@@ -584,10 +582,146 @@ def Plot_2Lens_Diagnostics(
         a.grid(True, alpha=0.3)
 
     fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
+    plt.tight_layout(rect=[0,0,0.92,1])   
+    
+def Plot_2Lens_Diagnostics_V2(
+        optics,
+        P_values,
+        w0,
+        z0_list,
+        wavelength=1064e-9,
+        scale_effF=False
+    ):
+
+    optics_sorted = sorted(optics, key=lambda o: o['z'])
+    L1 = optics_sorted[0]
+    L2 = optics_sorted[-1]
+
+    z1 = L1['z']
+    z2 = L2['z']
+
+    zR_input = z_R(w0)
+
+    fig, ax = plt.subplots(3, 3, figsize=(11, 8))
+
+    (
+        (axF1,   axWint,  axZint),
+        (axWL2,  axF2,    axZout),
+        (axWout, axTheta, axBlank)
+    ) = ax
+
+    # ---------- Storage ----------
+    Nz0 = len(z0_list)
+    NP  = len(P_values)
+
+    results = {
+        'F1'       : np.zeros((Nz0, NP)),
+        'w_int'    : np.zeros((Nz0, NP)),
+        'z_int'    : np.zeros((Nz0, NP)),
+        'w_L2'     : np.zeros((Nz0, NP)),
+        'F2'       : np.zeros((Nz0, NP)),
+        'z_out'    : np.zeros((Nz0, NP)),
+        'w_out'    : np.zeros((Nz0, NP)),
+        'theta'    : np.zeros((Nz0, NP)),
+        'curvature': np.zeros((Nz0, NP)),
+        'P_values' : np.asarray(P_values),
+        'z0_list'  : np.asarray(z0_list)
+    }
+
+    # ---------- Main Loop ----------
+    for i, z0 in enumerate(z0_list):
+
+        for j, P in enumerate(P_values):
+
+            # ---------- Beam at L1 ----------
+            q = z0 + 1j * z_R(w0)
+            q = apply_matrix(q, M_free(z1))
+            w_L1 = waist_from_q(q)
+
+            F1 = effective_focalLength(L1['f_base'], P, L1['m0'], w_L1)
+            q = apply_matrix(q, M_lens(F1))
+
+            # ---------- Intermediate waist ----------
+            z_int = -np.real(q)
+            zR_int = np.imag(q)
+            w_int = np.sqrt(wavelength/np.pi * zR_int)
+
+            # ---------- Propagate to L2 ----------
+            q = apply_matrix(q, M_free(z2 - z1))
+            w_L2 = waist_from_q(q)
+
+            # ---------- Thermal lens at L2 ----------
+            F2 = effective_focalLength(L2['f_base'], P, L2['m0'], w_L2)
+            q = apply_matrix(q, M_lens(F2))
+
+            # ---------- Output beam ----------
+            z_out = -np.real(q)
+            zR_out = np.imag(q)
+            w_out = np.sqrt(wavelength/np.pi * zR_out)
+            theta = wavelength / (np.pi * w_out)
+            curvature = np.real(1/q)
+
+            # ---------- Store ----------
+            results['F1'][i, j]        = F1
+            results['w_int'][i, j]     = w_int
+            results['z_int'][i, j]     = z_int
+            results['w_L2'][i, j]      = w_L2
+            results['F2'][i, j]        = F2
+            results['z_out'][i, j]     = z_out
+            results['w_out'][i, j]     = w_out
+            results['theta'][i, j]     = theta
+            results['curvature'][i, j] = curvature
+
+        label = f'z0/zR = {z0/zR_input:.0f}'
+
+        # ---------- Plot ----------
+        F1_plot = results['F1'][i] / L1['f_base'] if scale_effF else results['F1'][i] * 1e3
+        F2_plot = results['F2'][i] / L2['f_base'] if scale_effF else results['F2'][i] * 1e3
+
+        axF1.plot(P_values, F1_plot, label=label)
+        axWint.plot(P_values, results['w_int'][i] * 1e6)
+        axZint.plot(P_values, results['z_int'][i] * 1e3)
+
+        axWL2.plot(P_values, results['w_L2'][i] * 1e3)
+        axF2.plot(P_values, F2_plot)
+        axZout.plot(P_values, results['z_out'][i] * 1e3)
+
+        axWout.plot(P_values, results['w_out'][i] * 1e6)
+        axTheta.plot(P_values, results['theta'][i] * 1e3)
+        axBlank.plot(P_values, results['curvature'][i])
+
+    # ---------- Formatting ----------
+    axF1.set_title('Effective $F_1$')
+    axWint.set_title('$w_0^{int}$')
+    axZint.set_title('$z_0^{int}$')
+    axF2.set_title('Effective $F_2$')
+    axWL2.set_title('$w_{L2}$')
+    axZout.set_title('$z_0^\\prime$')
+    axWout.set_title('$w_0^\\prime$')
+    axTheta.set_title('$\\theta^\\prime$')
+    axBlank.set_title('Curvature $R$')
+    
+    # ---------- Labels ----------
+    for a in [axF1, axF2, axWL2, axZint, axZout]:
+        a.set_ylabel('mm')
+    
+    if scale_effF is True:
+        axF1.set_ylabel('$F_1$/$f_{01}$')
+        axF2.set_ylabel('$F_2$/$f_{02}$')
+
+    for a in [axWint, axWout]:
+        a.set_ylabel('µm')
+
+    axTheta.set_ylabel('mrad')
+
+    for a in [axF1, axWint, axZint, axF2, axWL2, axZout, axWout, axTheta, axBlank]:
+        a.set_xlabel('Power (W)')
+        a.grid(True, alpha=0.3)
+
+    fig.legend(bbox_to_anchor=(1.0, 0.9), fontsize=8)
     plt.tight_layout(rect=[0,0,0.92,1])
-    
-    return wint_fullList
-    
+
+    return results
     
     
 def Plot_3Lens_DistScan(
