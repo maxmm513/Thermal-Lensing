@@ -998,6 +998,33 @@ def Plot_rmsMap(
 
     return d_vals, D_vals, RMS_map
 
+#%% Galilean Telescope Analysis
+from scipy.signal import argrelextrema
+
+def C_TelescopeRTM(F1, F2, d_12):
+    return (d_12 - F1 - F2) / (F1*F2)
+
+
+def q_out_denom(w0, F1, F2, d_12, z0=0):
+    
+    zR = np.pi * w0**2 / 1064e-9
+    C = C_TelescopeRTM(F1, F2, d_12)
+    D = (F2-d_12) / F2
+    
+    return (C*z0+D)**2 + C**2 * zR**2
+
+def RelativeExtrema(arr):
+    
+    # Local maxima
+    max_idx = argrelextrema(arr, np.greater)[0]
+    max_vals = arr[max_idx]
+
+    # Local minima
+    min_idx = argrelextrema(arr, np.less, mode='wrap')[0]
+    min_vals = arr[min_idx]
+    
+    return min_idx, max_idx, min_vals, max_vals
+
 
 #%% Animation
 def AnimateBeamAfterLastOptic(
