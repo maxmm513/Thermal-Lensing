@@ -1001,6 +1001,7 @@ def Plot_rmsMap(
 #%% Galilean Telescope Analysis
 from scipy.signal import argrelextrema
 
+
 def C_TelescopeRTM(F1, F2, d_12):
     return (d_12 - F1 - F2) / (F1*F2)
 
@@ -1024,6 +1025,96 @@ def RelativeExtrema(arr):
     min_vals = arr[min_idx]
     
     return min_idx, max_idx, min_vals, max_vals
+
+
+def Power_minW_L2(results, z0_list):
+    
+    wL2_min = []
+    P0_value = []
+    P0_idx = []
+    P1_value = []
+    P1_idx = []
+    wL2_atP1 = []
+
+    for i in range(len(z0_list)):
+        
+        # minimum w_L2 value
+        wL2_minVal = min(results['w_L2'][i,:])
+        
+        # power @ minimum w_L2
+        wL2_minVal_Pidx = np.argmin(results['w_L2'][i,:])
+        wL2_minVal_P = results['P_values'][wL2_minVal_Pidx]
+        
+        
+        # power @ minimum divergence theta'
+        theta_minVal_Pidx = np.argmin(results['theta'][i,:])
+        theta_minVal_P = results['P_values'][theta_minVal_Pidx]
+        
+        # w_L2 when theta' is minimized
+        wL2_atP1_val = results['w_L2'][i, theta_minVal_Pidx]
+
+        # append lists        
+        wL2_min.append(wL2_minVal)
+        P0_value.append(wL2_minVal_P)
+        P0_idx.append(wL2_minVal_Pidx)
+        P1_value.append(theta_minVal_P)
+        P1_idx.append(theta_minVal_Pidx)          
+        wL2_atP1.append(wL2_atP1_val)
+    
+    # convert to np array
+    for listt in [wL2_min, P0_value, P0_idx, P1_value, P1_idx, wL2_atP1]:
+        listt = np.array(listt)
+    
+    return P0_value, P0_idx, P1_value, P1_idx, wL2_min, wL2_atP1
+
+
+def Galilean_Diagnostic(results, z0_list, d_12, P0_idx, P1_idx, z0_idx=0, w0=1e-3):
+    
+    P = results['P_values']
+    F1 = results['F1'][z0_idx, :]
+    F2 = results['F2'][z0_idx, :]
+    
+    C = C_TelescopeRTM(F1, F2, d_12)
+    qDenom = q_out_denom(w0, F1, F2, d_12, z0=z0_list[z0_idx])
+    
+    # NEED TO ADD: power when C=0
+    
+    Qmin_idx, Qmax_idx, _,_ = RelativeExtrema(qDenom)
+    
+    fig, ax = plt.subplots(2,2, figsize=(8,8))
+    fig.suptitle(f'Galilean telescope, z0={z0_list[z0_idx]}')
+    
+    ax[0,0].plot(P, results['w_L2'][z0_idx, :]*1e6, color='C'+str(z0_idx))
+    ax[0,0].set_title('$w_{L2}$')
+    ax[0,0].set_ylabel('um')
+    ax[0,0].axvline(x=P[P0_idx[z0_idx]], ls='--', color='C9', label='P @ min $w_{L2}$')
+
+    
+    ax[0,1].plot(P, results['z_out'][z0_idx, :]*1e3, color='C'+str(z0_idx))
+    ax[0,1].set_title('$z_0^\prime$')
+    ax[0,1].set_ylabel('m')
+    ax[0,1].axvline(x=P[P0_idx[z0_idx]], ls='--', color='C9', label='P @ min $w_{L2}$')
+
+
+    ax[1,0].plot(P, C, color='C'+str(z0_idx),)
+    ax[1,0].set_title('C')
+    ax[1,0].axvline(x=P[P0_idx[z0_idx]], ls='--', color='C9', label='P @ min $w_{L2}$')
+
+    
+    ax[1,1].plot(P, qDenom, color='C'+str(z0_idx),)
+    ax[1,1].set_title('$q_{out}$ denominator')
+    ax[1,1].axvline(x=P[P0_idx[z0_idx]], ls='--', color='C9', label='P @ min $w_{L2}$')
+    
+    for j in range(len(Qmin_idx)):
+        ax[0,0].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
+        ax[0,1].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
+        ax[1,0].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
+        ax[1,1].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
+        
+    ax[1,1].legend(loc='upper right', fontsize=9)
+
+
+    
 
 
 #%% Animation
