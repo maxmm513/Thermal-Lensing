@@ -8,8 +8,8 @@ plt.close('all')
 #%% Parameters and Optical System
 w0 = 1e-3
 zR_num = TL.z_R(w0)       
-z0 = 0 * zR_num    
-P_list = [1, 30, 100, 150, 200]
+z0 = -1 * zR_num    
+P_list = [249]
 
 m01 = 4e-9
 m02 = m01
@@ -69,7 +69,7 @@ results = TL.Plot_2Lens_Diagnostics_V2(optics, P_dense, w0, z0_list)
 
 P0_value, P0_idx, P1_value, P1_idx, wL2_min, wL2_atP1 = TL.Power_minW_L2(results, z0_list)
 
-TL.Galilean_Diagnostic(results, z0_list, dist, P0_idx, P1_idx, z0_idx=3, w0=w0)
+TL.Galilean_Diagnostic(results, z0_list, dist, P0_idx, P1_idx, z0_idx=1, w0=w0, eps=6.61e-1)
 
     
 #%% sum F1, F2 and idnetify power where afocal condition (C=0) is satisfied

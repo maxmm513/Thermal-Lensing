@@ -1026,6 +1026,13 @@ def RelativeExtrema(arr):
     
     return min_idx, max_idx, min_vals, max_vals
 
+def FindValsNearZero(arr, eps=5e-3):
+
+    idx = np.where(np.abs(arr) < eps)[0]
+    vals = arr[idx]
+    
+    return idx, vals
+
 
 def Power_minW_L2(results, z0_list):
     
@@ -1068,8 +1075,9 @@ def Power_minW_L2(results, z0_list):
     return P0_value, P0_idx, P1_value, P1_idx, wL2_min, wL2_atP1
 
 
-def Galilean_Diagnostic(results, z0_list, d_12, P0_idx, P1_idx, z0_idx=0, w0=1e-3):
+def Galilean_Diagnostic(results, z0_list, d_12, P0_idx, P1_idx, z0_idx=0, w0=1e-3, eps=5e-3):
     
+    zR = z_R(w0)
     P = results['P_values']
     F1 = results['F1'][z0_idx, :]
     F2 = results['F2'][z0_idx, :]
@@ -1077,12 +1085,11 @@ def Galilean_Diagnostic(results, z0_list, d_12, P0_idx, P1_idx, z0_idx=0, w0=1e-
     C = C_TelescopeRTM(F1, F2, d_12)
     qDenom = q_out_denom(w0, F1, F2, d_12, z0=z0_list[z0_idx])
     
-    # NEED TO ADD: power when C=0
-    
+    Czero, _ = FindValsNearZero(C, eps=eps)    
     Qmin_idx, Qmax_idx, _,_ = RelativeExtrema(qDenom)
     
-    fig, ax = plt.subplots(2,2, figsize=(8,8))
-    fig.suptitle(f'Galilean telescope, z0={z0_list[z0_idx]}')
+    fig, ax = plt.subplots(2,2, figsize=(7,6))
+    fig.suptitle(f'Galilean telescope, z0/zR={z0_list[z0_idx]/zR:.0f}', fontweight='bold')
     
     ax[0,0].plot(P, results['w_L2'][z0_idx, :]*1e6, color='C'+str(z0_idx))
     ax[0,0].set_title('$w_{L2}$')
@@ -1092,7 +1099,7 @@ def Galilean_Diagnostic(results, z0_list, d_12, P0_idx, P1_idx, z0_idx=0, w0=1e-
     
     ax[0,1].plot(P, results['z_out'][z0_idx, :]*1e3, color='C'+str(z0_idx))
     ax[0,1].set_title('$z_0^\prime$')
-    ax[0,1].set_ylabel('m')
+    ax[0,1].set_ylabel('mm')
     ax[0,1].axvline(x=P[P0_idx[z0_idx]], ls='--', color='C9', label='P @ min $w_{L2}$')
 
 
@@ -1106,14 +1113,28 @@ def Galilean_Diagnostic(results, z0_list, d_12, P0_idx, P1_idx, z0_idx=0, w0=1e-
     ax[1,1].axvline(x=P[P0_idx[z0_idx]], ls='--', color='C9', label='P @ min $w_{L2}$')
     
     for j in range(len(Qmin_idx)):
-        ax[0,0].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
-        ax[0,1].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
-        ax[1,0].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
-        ax[1,1].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label='P @ q denom = 0')
+        label = 'P @ q denom = 0' if j == 0 else None
+        
+        ax[0,0].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label=label)
+        ax[0,1].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label=label)
+        ax[1,0].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label=label)
+        ax[1,1].axvline(x=P[Qmin_idx[j]], ls='--', color='C8', label=label)
+        
+    for k in range(len(Czero)):
+        label = 'P @ C = 0' if k == 0 else None
+
+        ax[0,0].axvline(x=P[Czero[k]], ls=':', color='C5', label=label)
+        ax[0,1].axvline(x=P[Czero[k]], ls=':', color='C5', label=label)
+        ax[1,0].axvline(x=P[Czero[k]], ls=':', color='C5', label=label)
+        ax[1,1].axvline(x=P[Czero[k]], ls=':', color='C5', label=label)
         
     ax[1,1].legend(loc='upper right', fontsize=9)
+    
+    for axis in [ax[0,0], ax[0,1], ax[1,0], ax[1,1]]:
+        axis.grid(True, alpha=0.3)
+        axis.set_xlabel('P (W)')
 
-
+    plt.tight_layout()
     
 
 
