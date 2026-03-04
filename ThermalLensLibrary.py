@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize_scalar
 import matplotlib.animation as animation
+from scipy.interpolate import RegularGridInterpolator
+
 
 LAMBDA = 1064e-9
 
@@ -981,19 +983,41 @@ def Plot_rmsMap(
     if mode == 'z0':
         unit = 'mm'
         scale = 1e3
+        title_label = "z0''"
     elif mode == 'w0':
         unit = 'um'
         scale = 1e6
+        title_label = "w0''"
     else:
         unit = 'm'
         scale=1
+        title_label = 'both'
 
     plt.figure()
-    cf = plt.contourf(D_vals, d_vals, RMS_map*scale, levels=100)
+    cf = plt.contourf(D_vals, d_vals, RMS_map*scale, levels=100, cmap='jet')
+    
+
+    # Build interpolator (note axis order)
+    interp = RegularGridInterpolator(
+        (d_vals, D_vals),
+        RMS_map * scale
+    )
+    
+    ax = plt.gca()
+    
+    def format_coord(x, y):
+        try:
+            z = interp((y, x))  # (d, D) order
+            return f"D={x:.4f}, d={y:.4f}, RMS={z:.4e} {unit}"
+        except:
+            return f"D={x:.4f}, d={y:.4f}"
+    
+    ax.format_coord = format_coord
+    
     plt.xlabel("$d_{23}$ (m)")
     plt.ylabel("$d_{12}$ (m)")
-    plt.title(f"RMS {mode}'' ({unit})")
-    plt.colorbar(cf, label="RMS value")
+    plt.title(f"RMS drift {title_label}")
+    plt.colorbar(cf, label=f"RMS value ({unit})")
     plt.tight_layout()
 
     return d_vals, D_vals, RMS_map
@@ -1444,3 +1468,110 @@ def AnimateBeamVsPowerMultipleZ0(
 
     return ani
 
+def AnimateBeamMultiPower(
+        optics,
+        z_plot,
+        z_lens_positions,
+        lens_to_move,      
+        P_list,            # list of powers
+        w0,
+        z0=0):
+
+    fig, ax = plt.subplots(figsize=(9,5))
+
+    # Create one line per power
+    lines = []
+    for P in P_list:
+        line, = ax.plot(
+            z_plot*1e3,
+            np.zeros_like(z_plot),
+            lw=2,
+            label=f"P = {P:.2f}"
+        )
+        lines.append(line)
+
+    # Create vertical lines for all lenses
+    lens_lines = {}
+    
+    for o in optics:
+        if o['name'] == lens_to_move:
+            # moving lens (thicker/darker)
+            lens_lines[o['name']] = ax.axvline(
+                o['z']*1e3,
+                color='k',
+                linestyle='--',
+                linewidth=2,
+                alpha=0.8,
+                # label=o['name']
+            )
+        else:
+            # stationary lenses
+            lens_lines[o['name']] = ax.axvline(
+                o['z']*1e3,
+                color='gray',
+                linestyle=':',
+                alpha=0.7,
+                # label=o['name']
+            )
+            
+    # Get fixed Lens 2 position
+    z2_fixed = None
+    for o in optics:
+        if o['name'] != lens_to_move:
+            # assuming lens order is L1, L2, L3
+            # and the moving lens is the last one
+            z2_fixed = o['z']  # this will be overwritten until last stationary lens
+
+    ax.set_xlim(z_plot.min()*1e3, z_plot.max()*1e3)
+    ax.set_ylim(0, 3000)
+
+    ax.set_xlabel('z (mm)')
+    ax.set_ylabel('Beam radius (µm)')
+    ax.set_title(f'Move {lens_to_move} lens')
+
+    ax.legend()
+
+    text = ax.text(0.02, 0.9, '', transform=ax.transAxes, fontsize=12)
+
+    def init():
+        for line in lines:
+            line.set_ydata(np.zeros_like(z_plot))
+        return (*lines, *lens_lines.values(), text)
+
+    def update(frame):
+
+        z_new = z_lens_positions[frame]
+
+        # fresh copy of optics
+        optics_frame = [o.copy() for o in optics]
+
+        for o in optics_frame:
+            if o['name'] == lens_to_move:
+                o['z'] = z_new
+
+        # Update each power curve
+        for line, P in zip(lines, P_list):
+            w_z, _ = propagate(optics_frame, z_plot, w0, P, z0=z0)
+            line.set_ydata(w_z * 1e6)
+
+        lens_lines[lens_to_move].set_xdata([z_new*1e3, z_new*1e3])
+        d23 = z_new - z2_fixed
+
+        text.set_text(
+            r"$z_{L3}$ = " + f"{z_new*1e3:.2f} mm\n"
+            r"$d_{23}$ = " + f"{d23*1e3:.2f} mm"
+        )
+        return (*lines, *lens_lines.values(), text)
+
+    ani = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(z_lens_positions),
+        init_func=init,
+        interval=40,
+        blit=True
+    )
+
+    plt.tight_layout()
+
+    return ani

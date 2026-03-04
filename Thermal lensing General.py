@@ -20,7 +20,7 @@ f2_dict = 125e-3
 dist = 0.5 #f1_dict+f2_dict
 
 f3_dict = 350e-3
-dist2 = dist + 0.93 #3
+dist2 = dist + f3_dict #3
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
@@ -107,16 +107,18 @@ TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=0)
 
 #%%
 
-P_rms = np.linspace(0,200,25)
+P_rms = np.linspace(0,200,50)
 x0 = [dist, 1]   # initial guesses [d_12, d_23] (m)
 
 
-TL.Plot_rmsMap(
+_,_,_=TL.Plot_rmsMap(
     optics, P_rms, w0, z0,
     d_range=(0.1, 1.5),
     D_range=(0.1, 1.5),
-    mode='both',
-    weights = (1,1e4)
+    mode='z0',
+    # weights = (1,1e4)
+    Nd=200,
+    ND=200
     )
 
 
