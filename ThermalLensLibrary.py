@@ -884,7 +884,7 @@ def rms_score_3lens_2dist(x, optics, P_values, w0, z0,
         (a, b) used only if mode="both"
     """
 
-    d, D = x
+    d_12, d_23 = x
     optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
     L1, L2, L3 = optics_sorted
 
@@ -905,14 +905,14 @@ def rms_score_3lens_2dist(x, optics, P_values, w0, z0,
         q = apply_matrix(q, M_lens(F1))
 
         # ---- L2 ----
-        q = apply_matrix(q, M_free(d))
+        q = apply_matrix(q, M_free(d_12))
         w_L2 = waist_from_q(q)
         f_th2 = w_L2**2 / (L2['m0'] * P)
         F2 = 1 / (1 / L2['f_base'] + 1 / f_th2)
         q = apply_matrix(q, M_lens(F2))
 
         # ---- L3 ----
-        q = apply_matrix(q, M_free(D))
+        q = apply_matrix(q, M_free(d_23))
         w_L3 = waist_from_q(q)
         f_th3 = w_L3**2 / (L3['m0'] * P)
         F3 = 1 / (1 / L3['f_base'] + 1 / f_th3)
@@ -950,26 +950,26 @@ def Plot_rmsMap(
         P_values,
         w0,
         z0,
-        d_range,
-        D_range,
+        d12_range,
+        d23_range,
         mode="z0",
         weights=(1.0, 1.0),
-        Nd=100,
-        ND=100
+        Nd_12=100,
+        Nd_23=100
     ):
     """
     Plots a 2D RMS map over (d, D) for a chosen metric.
     """
 
-    d_vals = np.linspace(*d_range, Nd)
-    D_vals = np.linspace(*D_range, ND)
+    d12_vals = np.linspace(*d12_range, Nd_12)
+    d23_vals = np.linspace(*d23_range, Nd_23)
 
-    RMS_map = np.zeros((Nd, ND))
+    RMS_map = np.zeros((Nd_12, Nd_23))
 
     print(f"Computing RMS map (mode='{mode}')...")
 
-    for i, d in enumerate(d_vals):
-        for j, D in enumerate(D_vals):
+    for i, d in enumerate(d12_vals):
+        for j, D in enumerate(d23_vals):
             RMS_map[i, j] = rms_score_3lens_2dist(
                 [d, D],
                 optics,
@@ -994,12 +994,12 @@ def Plot_rmsMap(
         title_label = 'both'
 
     plt.figure()
-    cf = plt.contourf(D_vals, d_vals, RMS_map*scale, levels=100, cmap='jet')
+    cf = plt.contourf(d23_vals, d12_vals, RMS_map*scale, levels=100, cmap='jet')
     
 
     # Build interpolator (note axis order)
     interp = RegularGridInterpolator(
-        (d_vals, D_vals),
+        (d12_vals, d23_vals),
         RMS_map * scale
     )
     
@@ -1020,7 +1020,7 @@ def Plot_rmsMap(
     plt.colorbar(cf, label=f"RMS value ({unit})")
     plt.tight_layout()
 
-    return d_vals, D_vals, RMS_map
+    return d12_vals, d23_vals, RMS_map
 
 #%% Galilean Telescope Analysis
 from scipy.signal import argrelextrema
