@@ -9,7 +9,7 @@ plt.close('all')
 w0 = 1e-3
 zR_num = TL.z_R(w0)       
 z0 = 0 * zR_num    
-P_list = [1, 25, 50, 100, 200]
+P_list = [0,1, 25, 50, 100, 200]
 
 m01 = 4e-9
 m02 = m01
@@ -17,22 +17,22 @@ m03 = m01
 
 f1_dict = 500e-3
 f2_dict = 125e-3
-dist = 0.5 #f1_dict+f2_dict
-
 f3_dict = 350e-3
-dist2 = dist + f3_dict #3
+
+dist12 = 0.557
+dist23 = 0.357
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
     # {'z': 0.375, 'f_base': 0.125, 'm0': m0, 'name': '125 mm'}
     
     {'z': 0, 'f_base': f1_dict, 'm0': m01, 'name': f'{f1_dict*1e3} mm'},
-    {'z': dist, 'f_base': f2_dict, 'm0': m02, 'name': f'{f2_dict*1e3} mm'},
-    {'z': dist+dist2, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
+    {'z': dist12, 'f_base': f2_dict, 'm0': m02, 'name': f'{f2_dict*1e3} mm'},
+    {'z': dist12+dist23, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
 ]
 
-z_obs = dist+dist2 + 1.2
-z_points = np.linspace(0, z_obs, 3000) 
+z_obs = dist12 + dist23 + 1.4
+z_points = np.linspace(0, z_obs, 8000) 
 
 #%%
 # plt.figure(figsize=(9,4))
@@ -105,22 +105,49 @@ TL.Plot_2Lens_Diagnostics(optics, P_dense, w0, z0_list)
 D_list = [0.25, 0.75, 1, 2.5]
 TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=0)
 
+#%% Run the Grid Search and Plot
+
+P_rms = np.linspace(0.1,200,25)
+
+# parameter space to explore (m)
+grid_points = 150
+d12_vals = np.linspace(0.1, 1.5, grid_points)
+d23_vals = np.linspace(0.1, 1.5, grid_points)
+
+f_nominal = (f1_dict, f2_dict, f3_dict)
+m0_vals = (m01, m02, m03)
+
+# Calculate the RMS error matrices
+D12, D23, z0_rms, w0_rms = TL.calculate_rms_drift_2d(
+    d12_vals, d23_vals, f_nominal, m0_vals, P_rms, w0, z0_in=z0
+)
+
+D12, D23, z0_max, w0_max = TL.calculate_max_shift_2d(
+    d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, z0_in=z0)
+
+TL.Plot_RMSmap(D12, D23, z0_max, w0_max)
+
+#%%
+best_configs, worst_configs = TL.get_extreme_rms_combinations(
+    D12, D23, z0_rms, num_points=5, min_spacing=0.1)
+
+print("--- TOP 5 MOST STABLE CONFIGURATIONS ---")
+for i, config in enumerate(best_configs):
+    print(f"{i+1}. d12 = {config['d12']:.3f} m, d23 = {config['d23']:.3f} m | RMS = {config['rms']*1e3:.2f} mm")
+
+print("\n--- TOP 5 LEAST STABLE CONFIGURATIONS ---")
+for i, config in enumerate(worst_configs):
+    print(f"{i+1}. d12 = {config['d12']:.3f} m, d23 = {config['d23']:.3f} m | RMS = {config['rms']*1e3:.2f} mm")
+
 #%%
 
-P_rms = np.linspace(0,200,50)
-x0 = [dist, 1]   # initial guesses [d_12, d_23] (m)
+D12, D23, z0_rms, w0_rms, combined_score, best_configs = TL.optimize_thermal_stability(
+    d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, 
+    z0_in=0, weight_z=0.6, weight_w=0.4, num_points=5, min_spacing=0.1
+)
 
 
-_,_,_=TL.Plot_rmsMap(
-    optics, P_rms, w0, z0,
-    d_range=(0.1, 1.5),
-    D_range=(0.1, 1.5),
-    mode='z0',
-    # weights = (1,1e4)
-    Nd=200,
-    ND=200
-    )
-
+TL.Plot_CombinedScore(D12, D23, combined_score, best_configs=None)
 
 #%% Animation
 import matplotlib.animation as animation
@@ -166,13 +193,25 @@ P_values = np.linspace(1, 500, 100)
 
 
 z0_list = [-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num]
-ani = TL.AnimateBeamVsPowerMultipleZ0(
+# ani = TL.AnimateBeamVsPowerMultipleZ0(
+#         optics,
+#         z_plot,
+#         P_values,
+#         w0,
+#         z0_list
+#     )
+
+L1_dist = 1.2
+L2_positions = np.linspace(L1_dist+0.2, L1_dist+0.7, 200)
+
+ani = TL.AnimateBeamMultiPower(
         optics,
         z_plot,
-        P_values,
+        L2_positions,
+        optics[-1]['name'],      
+        [0, 20, 50, 100, 150],            # list of powers
         w0,
-        z0_list
-    )
+        z0=0)
 
 # ani.save("beam_power_animation.gif", fps=20)
 
