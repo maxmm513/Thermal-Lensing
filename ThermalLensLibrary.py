@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize_scalar
 import matplotlib.animation as animation
+import matplotlib.colors as mcolors
 from scipy.interpolate import RegularGridInterpolator
 
 
@@ -864,163 +865,322 @@ def Plot_3Lens_DistScan(
 
 #%%
 
-def rms_score_3lens_2dist(x, optics, P_values, w0, z0,
-        mode="z0",          # "z0", "w0", or "both"
-        weights=(1.0, 1.0), # (z0_weight, w0_weight) if mode="both"
-        wavelength=1064e-9
-    ):
+def calculate_rms_drift_2d(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, z0_in=0):
     """
-    General RMS objective for a 3-lens thermal system.
-
-    x[0] = d_12  
-    x[1] = d_23
-
-    mode:
-        'z0'   : minimize RMS change in z0''
-        'w0'   : minimize RMS change in w0''
-        'both' : weighted combination
-
-    weights:
-        (a, b) used only if mode="both"
+    Calculates the RMS drift of the waist location (z0) and size (w0) 
+    after L3 across a grid of d12 and d23 spacings.
     """
-
-    d_12, d_23 = x
-    optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
-    L1, L2, L3 = optics_sorted
-
-    z1 = L1['z']
-
-    z3_list = []
-    w3_list = []
-
-    for P in P_values:
-
-        q = z0 + 1j * z_R(w0,)
-
-        # ---- L1 ----
-        q = apply_matrix(q, M_free(z1))
-        w_L1 = waist_from_q(q)
-        f_th1 = w_L1**2 / (L1['m0'] * P)
-        F1 = 1 / (1 / L1['f_base'] + 1 / f_th1)
-        q = apply_matrix(q, M_lens(F1))
-
-        # ---- L2 ----
-        q = apply_matrix(q, M_free(d_12))
-        w_L2 = waist_from_q(q)
-        f_th2 = w_L2**2 / (L2['m0'] * P)
-        F2 = 1 / (1 / L2['f_base'] + 1 / f_th2)
-        q = apply_matrix(q, M_lens(F2))
-
-        # ---- L3 ----
-        q = apply_matrix(q, M_free(d_23))
-        w_L3 = waist_from_q(q)
-        f_th3 = w_L3**2 / (L3['m0'] * P)
-        F3 = 1 / (1 / L3['f_base'] + 1 / f_th3)
-        q = apply_matrix(q, M_lens(F3))
-
-        # outputs
-        z3_list.append(-np.real(q))      # z0''
-        w3_list.append(waist_from_q(q))  # w0''
-
-    z3_arr = np.array(z3_list)
-    w3_arr = np.array(w3_list)
-
-    # reference at lowest power
-    dz = z3_arr - z3_arr[0]
-    dw = w3_arr - w3_arr[0]
-
-    if mode == "z0":
-        return np.sqrt(np.mean(dz**2))
-
-    if mode == "w0":
-        return np.sqrt(np.mean(dw**2))
-
-    if mode == "both":
-        a, b = weights
-        rms_z = np.sqrt(np.mean(dz**2))
-        rms_w = np.sqrt(np.mean(dw**2))
-        
-        return a * rms_z + b * rms_w
-
-    raise ValueError("mode must be 'z0' or 'w0'")
+    # Create 2D meshgrids for the spacings
+    D12, D23 = np.meshgrid(d12_vals, d23_vals)
+    z0_rms = np.zeros_like(D12)
+    w0_rms = np.zeros_like(D12)
     
+    f1, f2, f3 = f_nominal
+    m01, m02, m03 = m0_vals
+    
+    # Loop over the grid
+    for i in range(D12.shape[0]):
+        for j in range(D12.shape[1]):
+            d12 = D12[i, j]
+            d23 = D23[i, j]
+            
+            # Define the optics list for this specific spacing
+            optics = [
+                {'z': 0,       'f_base': f1, 'm0': m01, 'name': 'L1'},
+                {'z': d12,     'f_base': f2, 'm0': m02, 'name': 'L2'},
+                {'z': d12+d23, 'f_base': f3, 'm0': m03, 'name': 'L3'}
+            ]
+            
+            z_waists = []
+            w_waists = []
+            
+            # Calculate waist parameters for each power
+            for P in P_list:
+                q_out = q_after_last_optic(optics, w0, P, z0=z0_in)
+                
+                # Extract analytical waist size and location directly from q
+                # q = z + i*zR  --> The distance to the waist from the current plane is -Re(q)
+                z_waist_rel = -np.real(q_out) 
+                
+                # Extract Rayleigh length to get true waist radius
+                zR_out = np.imag(q_out)
+                w0_out = np.sqrt(zR_out * LAMBDA / np.pi) 
+                
+                z_waists.append(z_waist_rel)
+                w_waists.append(w0_out)
+            
+            z_waists = np.array(z_waists)
+            w_waists = np.array(w_waists)
+            
+            # Calculate drift relative to the low-power base state (P_list[0])
+            z_drift = z_waists - z_waists[0]
+            w_drift = w_waists - w_waists[0]
+            
+            # Compute Root Mean Square (RMS) error
+            z0_rms[i, j] = np.sqrt(np.mean(z_drift**2))
+            w0_rms[i, j] = np.sqrt(np.mean(w_drift**2))
+            
+    return D12, D23, z0_rms, w0_rms
 
-def Plot_rmsMap(
-        optics,
-        P_values,
-        w0,
-        z0,
-        d12_range,
-        d23_range,
-        mode="z0",
-        weights=(1.0, 1.0),
-        Nd_12=100,
-        Nd_23=100
-    ):
+
+
+def calculate_max_shift_2d(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, z0_in=0):
     """
-    Plots a 2D RMS map over (d, D) for a chosen metric.
+    Calculates the maximum absolute drift (Max Shift) of the beam waist location (z0) 
+    and waist size (w0) relative to the 0 W state.
+    
+    Compatible as a drop-in replacement for plotting functions expecting 
+    D12, D23, z0_metric, w0_metric.
     """
-
-    d12_vals = np.linspace(*d12_range, Nd_12)
-    d23_vals = np.linspace(*d23_range, Nd_23)
-
-    RMS_map = np.zeros((Nd_12, Nd_23))
-
-    print(f"Computing RMS map (mode='{mode}')...")
-
-    for i, d in enumerate(d12_vals):
-        for j, D in enumerate(d23_vals):
-            RMS_map[i, j] = rms_score_3lens_2dist(
-                [d, D],
-                optics,
-                P_values,
-                w0,
-                z0,
-                mode=mode,
-                weights=weights
-            )
-
-    if mode == 'z0':
-        unit = 'mm'
-        scale = 1e3
-        title_label = "z0''"
-    elif mode == 'w0':
-        unit = 'um'
-        scale = 1e6
-        title_label = "w0''"
-    else:
-        unit = 'm'
-        scale=1
-        title_label = 'both'
-
-    plt.figure()
-    cf = plt.contourf(d23_vals, d12_vals, RMS_map*scale, levels=100, cmap='jet')
+    # Create the 2D grid
+    D12, D23 = np.meshgrid(d12_vals, d23_vals)
+    z0_max_shift = np.zeros_like(D12)
+    w0_max_shift = np.zeros_like(D12)
     
+    f1, f2, f3 = f_nominal
+    m01, m02, m03 = m0_vals
+    
+    for i in range(D12.shape[0]):
+        for j in range(D12.shape[1]):
+            d12 = D12[i, j]
+            d23 = D23[i, j]
+            optics = [
+                {'z': 0,       'f_base': f1, 'm0': m01, 'name': 'L1'},
+                {'z': d12,     'f_base': f2, 'm0': m02, 'name': 'L2'},
+                {'z': d12+d23, 'f_base': f3, 'm0': m03, 'name': 'L3'}
+            ]
+            
+            z_waists = []
+            w_waists = []
+            
+            # Evaluate at every power level
+            for P in P_list:
+                q_out = q_after_last_optic(optics, w0, P, z0=z0_in)
+                z_waist_rel = -np.real(q_out)
+                zR_out = np.imag(q_out)
+                w0_out = np.sqrt(zR_out * LAMBDA / np.pi)
+                
+                z_waists.append(z_waist_rel)
+                w_waists.append(w0_out)
+                
+            z_waists = np.array(z_waists)
+            w_waists = np.array(w_waists)
+            
+            # Calculate the maximum absolute shift relative to the 0 W baseline
+            z_drift = z_waists - z_waists[0]
+            w_drift = w_waists - w_waists[0]
+            
+            z0_max_shift[i, j] = np.max(np.abs(z_drift))
+            w0_max_shift[i, j] = np.max(np.abs(w_drift))
+            
+    return D12, D23, z0_max_shift, w0_max_shift
 
-    # Build interpolator (note axis order)
-    interp = RegularGridInterpolator(
-        (d12_vals, d23_vals),
-        RMS_map * scale
-    )
+
+
+
+def Plot_RMSmap(D12, D23, z0_rms, w0_rms):
     
-    ax = plt.gca()
-    
-    def format_coord(x, y):
-        try:
-            z = interp((y, x))  # (d, D) order
-            return f"D={x:.4f}, d={y:.4f}, RMS={z:.4e} {unit}"
-        except:
-            return f"D={x:.4f}, d={y:.4f}"
-    
-    ax.format_coord = format_coord
-    
-    plt.xlabel("$d_{23}$ (m)")
-    plt.ylabel("$d_{12}$ (m)")
-    plt.title(f"RMS drift {title_label}")
-    plt.colorbar(cf, label=f"RMS value ({unit})")
+    # Plotting the 2D Heatmaps
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Plot 1: Waist Location (z0) Drift
+    # Using a log-scale colormap helps highlight the true minima
+    c1 = ax1.pcolormesh(D12, D23, z0_rms * 1e3, shading='auto', 
+                        cmap='viridis', norm=mcolors.LogNorm())
+    ax1.set_xlabel('Spacing d12 (m)', fontsize=12)
+    ax1.set_ylabel('Spacing d23 (m)', fontsize=12)
+    ax1.set_title('RMS Drift of Waist Location (mm)', fontsize=14)
+    cbar1 = fig.colorbar(c1, ax=ax1)
+    cbar1.set_label('RMS Drift (mm)')
+
+    # Plot 2: Waist Size (w0) Drift
+    c2 = ax2.pcolormesh(D12, D23, w0_rms * 1e6, shading='auto', 
+                        cmap='plasma', norm=mcolors.LogNorm())
+    ax2.set_xlabel('Spacing d12 (m)', fontsize=12)
+    ax2.set_ylabel('Spacing d23 (m)', fontsize=12)
+    ax2.set_title('RMS Drift of Waist Size (µm)', fontsize=14)
+    cbar2 = fig.colorbar(c2, ax=ax2)
+    cbar2.set_label('RMS Drift (µm)')
+
     plt.tight_layout()
+    
 
-    return d12_vals, d23_vals, RMS_map
+def get_extreme_rms_combinations(D12, D23, z0_rms, num_points=5, min_spacing=0.1):
+    """
+    Finds the combinations of d12 and d23 that yield the smallest and largest RMS errors.
+    
+    Parameters:
+    - D12, D23, z0_rms: 2D numpy arrays from calculate_rms_drift_2d.
+    - num_points: Number of top combinations to return.
+    - min_spacing: Minimum physical distance (in meters) required between selected 
+                   configurations to prevent selecting adjacent grid points.
+                   
+    Returns:
+    - smallest_rms, largest_rms: Lists of dictionaries containing d12, d23, and rms.
+    """
+    # Flatten the grids for easier sorting
+    d12_flat = D12.flatten()
+    d23_flat = D23.flatten()
+    rms_flat = z0_rms.flatten()
+    
+    # Get indices sorted by RMS value (lowest to highest)
+    sorted_indices = np.argsort(rms_flat)
+    
+    def extract_spaced_points(indices, reverse=False):
+        if reverse:
+            indices = indices[::-1]
+            
+        selected_points = []
+        for idx in indices:
+            d12_curr = d12_flat[idx]
+            d23_curr = d23_flat[idx]
+            rms_curr = rms_flat[idx]
+            
+            # Check Euclidean distance in the d12-d23 parameter space
+            too_close = False
+            for sel in selected_points:
+                dist = np.sqrt((d12_curr - sel['d12'])**2 + (d23_curr - sel['d23'])**2)
+                if dist < min_spacing:
+                    too_close = True
+                    break
+            
+            if not too_close:
+                selected_points.append({
+                    'd12': d12_curr, 
+                    'd23': d23_curr, 
+                    'rms': rms_curr
+                })
+                
+            if len(selected_points) == num_points:
+                break
+                
+        return selected_points
+
+    # Extract the extremes
+    smallest_rms = extract_spaced_points(sorted_indices, reverse=False)
+    largest_rms = extract_spaced_points(sorted_indices, reverse=True)
+    
+    return smallest_rms, largest_rms
+
+
+
+def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, 
+                               z0_in=0, weight_z=0.5, weight_w=0.5, 
+                               num_points=5, min_spacing=0.1):
+    """
+    Calculates 2D RMS maps for focus location and waist size, evaluates a combined 
+    multi-objective score, and extracts the most stable, physically distinct setups.
+    """
+    # 1. Initialize Grids
+    D12, D23 = np.meshgrid(d12_vals, d23_vals)
+    z0_rms = np.zeros_like(D12)
+    w0_rms = np.zeros_like(D12)
+    
+    f1, f2, f3 = f_nominal
+    m01, m02, m03 = m0_vals
+    
+    # 2. Calculate RMS for z0 and w0 across the grid
+    for i in range(D12.shape[0]):
+        for j in range(D12.shape[1]):
+            d12 = D12[i, j]
+            d23 = D23[i, j]
+            optics = [
+                {'z': 0,       'f_base': f1, 'm0': m01, 'name': 'L1'},
+                {'z': d12,     'f_base': f2, 'm0': m02, 'name': 'L2'},
+                {'z': d12+d23, 'f_base': f3, 'm0': m03, 'name': 'L3'}
+            ]
+            
+            z_waists, w_waists = [], []
+            
+            for P in P_list:
+                q_out = q_after_last_optic(optics, w0, P, z0=z0_in)
+                z_waists.append(-np.real(q_out))
+                w_waists.append(np.sqrt(np.imag(q_out) * LAMBDA / np.pi))
+                
+            z_waists = np.array(z_waists)
+            w_waists = np.array(w_waists)
+            
+            z0_rms[i, j] = np.sqrt(np.mean((z_waists - z_waists[0])**2))
+            w0_rms[i, j] = np.sqrt(np.mean((w_waists - w_waists[0])**2))
+            
+    # 3. Calculate Combined Score (Log-normalized to 0-1)
+    log_z = np.log10(z0_rms + 1e-12)
+    log_w = np.log10(w0_rms + 1e-12)
+    
+    norm_z = (log_z - np.min(log_z)) / (np.max(log_z) - np.min(log_z))
+    norm_w = (log_w - np.min(log_w)) / (np.max(log_w) - np.min(log_w))
+    
+    combined_score = (weight_z * norm_z) + (weight_w * norm_w)
+    
+    # 4. Extract Top N Distinct Configurations
+    d12_flat, d23_flat = D12.flatten(), D23.flatten()
+    score_flat = combined_score.flatten()
+    z0_flat, w0_flat = z0_rms.flatten(), w0_rms.flatten()
+    
+    sorted_indices = np.argsort(score_flat) # Lowest score is best
+    best_configs = []
+    
+    for idx in sorted_indices:
+        d12_curr, d23_curr = d12_flat[idx], d23_flat[idx]
+        
+        # Ensure we aren't just picking adjacent pixels in the same valley
+        too_close = False
+        for sel in best_configs:
+            dist = np.sqrt((d12_curr - sel['d12'])**2 + (d23_curr - sel['d23'])**2)
+            if dist < min_spacing:
+                too_close = True
+                break
+        
+        if not too_close:
+            best_configs.append({
+                'd12': d12_curr, 'd23': d23_curr, 'score': score_flat[idx],
+                'z0_rms': z0_flat[idx], 'w0_rms': w0_flat[idx]
+            })
+            
+        if len(best_configs) == num_points:
+            break
+            
+    return D12, D23, z0_rms, w0_rms, combined_score, best_configs
+
+
+
+def Plot_CombinedScore(D12, D23, combined_score, best_configs=None):
+    """
+    Plots the combined multi-objective score map and overlays the top 
+    optimal configurations as numbered stars.
+    """
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Plot the heatmap (using 'viridis_r' so dark purple/blue is the 'best' low score)
+    c = ax.pcolormesh(D12, D23, combined_score, shading='auto', cmap='viridis_r')
+    
+    ax.set_xlabel('Spacing d12 (m)', fontsize=12)
+    ax.set_ylabel('Spacing d23 (m)', fontsize=12)
+    ax.set_title('Combined Thermal Stability Score', fontsize=14)
+    
+    cbar = fig.colorbar(c, ax=ax)
+    cbar.set_label('Normalized Score (0.0 = Best, 1.0 = Worst)')
+    
+    # Overlay the top configurations if they are provided
+    if best_configs is not None:
+        d12_best = [config['d12'] for config in best_configs]
+        d23_best = [config['d23'] for config in best_configs]
+        
+        # Plot red stars at the optimal locations
+        ax.scatter(d12_best, d23_best, color='red', marker='*', s=150, 
+                   edgecolor='black', zorder=5, label='Top Configurations')
+        
+        # Add numbered labels next to each star
+        for i, (x, y) in enumerate(zip(d12_best, d23_best)):
+            ax.text(x + 0.03, y + 0.03, str(i + 1), color='white', fontsize=11, 
+                    fontweight='bold', zorder=6,
+                    bbox=dict(facecolor='black', alpha=0.6, edgecolor='none', boxstyle='round,pad=0.2'))
+            
+        ax.legend(loc='upper right')
+
+    plt.tight_layout()
+    plt.show()
+    
 
 #%% Galilean Telescope Analysis
 from scipy.signal import argrelextrema
