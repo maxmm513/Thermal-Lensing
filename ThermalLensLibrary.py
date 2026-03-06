@@ -980,27 +980,25 @@ def calculate_max_shift_2d(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, z
 
 def Plot_RMSmap(D12, D23, z0_rms, w0_rms):
     
-    # Plotting the 2D Heatmaps
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-    # Plot 1: Waist Location (z0) Drift
-    # Using a log-scale colormap helps highlight the true minima
+    # z0'' drift
     c1 = ax1.pcolormesh(D12, D23, z0_rms * 1e3, shading='auto', 
-                        cmap='viridis', norm=mcolors.LogNorm())
-    ax1.set_xlabel('Spacing d12 (m)', fontsize=12)
-    ax1.set_ylabel('Spacing d23 (m)', fontsize=12)
-    ax1.set_title('RMS Drift of Waist Location (mm)', fontsize=14)
+                        cmap='turbo', norm=mcolors.LogNorm())
+    ax1.set_xlabel('$d_{12}$ (m)', fontsize=12)
+    ax1.set_ylabel('$d_{23}$ (m)', fontsize=12)
+    ax1.set_title('RMS Drift $z_0^{\prime\prime}$ (mm)', fontsize=14)
     cbar1 = fig.colorbar(c1, ax=ax1)
-    cbar1.set_label('RMS Drift (mm)')
+    cbar1.set_label('mm')
 
-    # Plot 2: Waist Size (w0) Drift
+    # w0'' drift
     c2 = ax2.pcolormesh(D12, D23, w0_rms * 1e6, shading='auto', 
-                        cmap='plasma', norm=mcolors.LogNorm())
-    ax2.set_xlabel('Spacing d12 (m)', fontsize=12)
-    ax2.set_ylabel('Spacing d23 (m)', fontsize=12)
-    ax2.set_title('RMS Drift of Waist Size (µm)', fontsize=14)
+                        cmap='turbo', norm=mcolors.LogNorm())
+    ax2.set_xlabel('$d_{12}$ (m)', fontsize=12)
+    ax2.set_ylabel('$d_{23}$ (m)', fontsize=12)
+    ax2.set_title('RMS Drift $w_0^{\prime\prime}$ (µm)', fontsize=14)
     cbar2 = fig.colorbar(c2, ax=ax2)
-    cbar2.set_label('RMS Drift (µm)')
+    cbar2.set_label('µm')
 
     plt.tight_layout()
     
@@ -1151,15 +1149,14 @@ def Plot_CombinedScore(D12, D23, combined_score, best_configs=None):
     """
     fig, ax = plt.subplots(figsize=(8, 6))
     
-    # Plot the heatmap (using 'viridis_r' so dark purple/blue is the 'best' low score)
-    c = ax.pcolormesh(D12, D23, combined_score, shading='auto', cmap='viridis_r')
+    c = ax.pcolormesh(D12, D23, combined_score, shading='auto', cmap='turbo')
     
-    ax.set_xlabel('Spacing d12 (m)', fontsize=12)
-    ax.set_ylabel('Spacing d23 (m)', fontsize=12)
-    ax.set_title('Combined Thermal Stability Score', fontsize=14)
+    ax.set_xlabel('$d_{12}$ (m)', fontsize=12)
+    ax.set_ylabel('$d_{23}$ (m)', fontsize=12)
+    ax.set_title('Combined RMS Drift', fontsize=14)
     
     cbar = fig.colorbar(c, ax=ax)
-    cbar.set_label('Normalized Score (0.0 = Best, 1.0 = Worst)')
+    cbar.set_label('Normalized Score')
     
     # Overlay the top configurations if they are provided
     if best_configs is not None:
