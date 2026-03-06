@@ -9,7 +9,7 @@ plt.close('all')
 w0 = 1e-3
 zR_num = TL.z_R(w0)       
 z0 = 0 * zR_num    
-P_list = [0,1, 25, 50, 100, 200]
+P_list = [0.1, 1, 25, 50, 100, 200]
 
 m01 = 4e-9
 m02 = m01
@@ -19,8 +19,8 @@ f1_dict = 500e-3
 f2_dict = 125e-3
 f3_dict = 350e-3
 
-dist12 = 0.557
-dist23 = 0.357
+dist12 = 1.5
+dist23 = 1.5
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
@@ -31,7 +31,7 @@ optics = [
     {'z': dist12+dist23, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
 ]
 
-z_obs = dist12 + dist23 + 1.4
+z_obs = dist12 + dist23 + 1
 z_points = np.linspace(0, z_obs, 8000) 
 
 #%%
@@ -125,6 +125,7 @@ D12, D23, z0_rms, w0_rms = TL.calculate_rms_drift_2d(
 D12, D23, z0_max, w0_max = TL.calculate_max_shift_2d(
     d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, z0_in=z0)
 
+#%%
 TL.Plot_RMSmap(D12, D23, z0_max, w0_max)
 
 #%%
