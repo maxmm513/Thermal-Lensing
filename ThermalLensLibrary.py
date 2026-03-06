@@ -1069,7 +1069,7 @@ def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w
     Calculates 2D RMS maps for focus location and waist size, evaluates a combined 
     multi-objective score, and extracts the most stable, physically distinct setups.
     """
-    # 1. Initialize Grids
+    # initialize grid
     D12, D23 = np.meshgrid(d12_vals, d23_vals)
     z0_rms = np.zeros_like(D12)
     w0_rms = np.zeros_like(D12)
@@ -1077,7 +1077,7 @@ def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w
     f1, f2, f3 = f_nominal
     m01, m02, m03 = m0_vals
     
-    # 2. Calculate RMS for z0 and w0 across the grid
+    # calculate RMS for z0 and w0
     for i in range(D12.shape[0]):
         for j in range(D12.shape[1]):
             d12 = D12[i, j]
@@ -1101,7 +1101,7 @@ def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w
             z0_rms[i, j] = np.sqrt(np.mean((z_waists - z_waists[0])**2))
             w0_rms[i, j] = np.sqrt(np.mean((w_waists - w_waists[0])**2))
             
-    # 3. Calculate Combined Score (Log-normalized to 0-1)
+    # calculate combined score (log normalized to 0-1)
     log_z = np.log10(z0_rms + 1e-12)
     log_w = np.log10(w0_rms + 1e-12)
     
