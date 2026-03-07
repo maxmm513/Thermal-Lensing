@@ -1063,8 +1063,10 @@ def get_extreme_rms_combinations(D12, D23, z0_rms, num_points=5, min_spacing=0.1
 
 
 def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, 
-                               z0_in=0, weight_z=0.5, weight_w=0.5, 
-                               num_points=5, min_spacing=0.1):
+                               z0_in=0, 
+                               weight_z=0.5, 
+                               weight_w=0.5, 
+                               ):
     """
     Calculates 2D RMS maps for focus location and waist size, evaluates a combined 
     multi-objective score, and extracts the most stable, physically distinct setups.
@@ -1101,44 +1103,17 @@ def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w
             z0_rms[i, j] = np.sqrt(np.mean((z_waists - z_waists[0])**2))
             w0_rms[i, j] = np.sqrt(np.mean((w_waists - w_waists[0])**2))
             
-    # calculate combined score (log normalized to 0-1)
-    log_z = np.log10(z0_rms + 1e-12)
-    log_w = np.log10(w0_rms + 1e-12)
+    # calculate combined score (log normalized)
+    # add small factor in case error --> 0, prevents divergence in log
+    log_z = np.log10(z0_rms + 1e-15)
+    log_w = np.log10(w0_rms + 1e-15)
     
     norm_z = (log_z - np.min(log_z)) / (np.max(log_z) - np.min(log_z))
     norm_w = (log_w - np.min(log_w)) / (np.max(log_w) - np.min(log_w))
     
     combined_score = (weight_z * norm_z) + (weight_w * norm_w)
-    
-    # 4. Extract Top N Distinct Configurations
-    d12_flat, d23_flat = D12.flatten(), D23.flatten()
-    score_flat = combined_score.flatten()
-    z0_flat, w0_flat = z0_rms.flatten(), w0_rms.flatten()
-    
-    sorted_indices = np.argsort(score_flat) # Lowest score is best
-    best_configs = []
-    
-    for idx in sorted_indices:
-        d12_curr, d23_curr = d12_flat[idx], d23_flat[idx]
-        
-        # Ensure we aren't just picking adjacent pixels in the same valley
-        too_close = False
-        for sel in best_configs:
-            dist = np.sqrt((d12_curr - sel['d12'])**2 + (d23_curr - sel['d23'])**2)
-            if dist < min_spacing:
-                too_close = True
-                break
-        
-        if not too_close:
-            best_configs.append({
-                'd12': d12_curr, 'd23': d23_curr, 'score': score_flat[idx],
-                'z0_rms': z0_flat[idx], 'w0_rms': w0_flat[idx]
-            })
             
-        if len(best_configs) == num_points:
-            break
-            
-    return D12, D23, z0_rms, w0_rms, combined_score, best_configs
+    return D12, D23, z0_rms, w0_rms, combined_score
 
 
 
@@ -1156,7 +1131,7 @@ def Plot_CombinedScore(D12, D23, combined_score, best_configs=None):
     ax.set_title('Combined RMS Drift', fontsize=14)
     
     cbar = fig.colorbar(c, ax=ax)
-    cbar.set_label('Normalized Score')
+    cbar.set_label('Normalized Error')
     
     # Overlay the top configurations if they are provided
     if best_configs is not None:
