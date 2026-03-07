@@ -52,9 +52,36 @@ colsForAnalysis = ['Xwidth', 'Ywidth']
 
 stats = TLE.RawFitStats(df, colsForAnalysis)
 
-results = TLE.Fit_GaussianBeamRadius_V2(stats, colsForAnalysis, doPlot=True)
+results = TLE.Fit_GaussianBeamRadius(stats, colsForAnalysis, doPlot=True)
 
 #%%
 
-
+def Plot_QuantvsPower(quant, results, polarizer=False):
+    
+    # convert power % to watts
+    if polarizer:
+        P_W = 2.17*results['Power'] - 28.4
+    else:
+        P_W = 2.34*results['Power'] - 30.1
+        
+    if quant[0] == 'z':
+        scale = 1e3
+        unit = 'mm'
+    elif quant[0] == 'w':
+        scale = 1e6
+        unit = 'μm'
+        
+    col_vals = quant+' fit'
+    col_errs = quant+' fit err'
+    
+    plt.figure(figsize=(4,3))    
+    plt.errorbar(P_W, results[col_vals]*scale, yerr=results[col_errs]*scale, fmt='o', capsize=3)
+    
+    plt.title(quant, fontsize=14)
+    plt.xlabel('Power (W)')
+    plt.ylabel(quant + f' ({unit})')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+Plot_QuantvsPower('z0_X', results)
 

@@ -143,75 +143,6 @@ def Fit_GaussianBeamRadius(stats, colsForAnalysis, wavelength=1064e-9, doPlot=Fa
     for power, group in stats.groupby('Power'):
         row = {'Power': power}
         
-        for col in colsForAnalysis:
-            z = group['Distance'].values
-            w_meas = group[f'{col}_mean'].values
-            w_err = group[f'{col}_std'].values
-
-            # [min width, position of min width]
-            p0 = [np.min(w_meas), z[np.argmin(w_meas)]]
-            
-            try:
-                popt, pcov = curve_fit(w_z, z, w_meas, p0=p0, sigma=w_err, absolute_sigma=True)
-                perr = np.sqrt(np.diag(pcov))
-                
-                # store results in the dictionary
-                axis = col[0]
-                row[f'w0_{axis} fit'] = popt[0]
-                row[f'z0_{axis} fit'] = popt[1]
-                row[f'w0_{axis} fit err'] = perr[0]
-                row[f'z0_{axis} fit err'] = perr[1]
-                
-            except Exception as e:
-                print(f"Fit failed for Power {power}, Column {col}: {e}")
-                row[f'w0_{axis}'] = row[f'z0_{axis}'] = np.nan
-                
-            if doPlot:
-                z_fit = np.linspace(min(z), max(z), 2000)
-                fig,ax = plt.subplots(figsize=(4,3))
-                ax.errorbar(z*1e3, w_meas*1e6, yerr=w_err*1e6, fmt='o', capsize=3)
-                ax.plot(z_fit*1e3, w_z(z_fit, *popt)*1e6,'r-')
-                
-                ax.set_title(f'{col}, P={power}%')
-                ax.set_xlabel('Distance (mm)')
-                ax.set_ylabel(col+' (μm)')
-                ax.grid(True,alpha=0.2)
-                txt = f'w0={popt[0]*1e6:.2f} $\pm$ {perr[0]*1e6:.2f} μm\nz0={popt[1]*1e3:.2f} $\pm$ {perr[1]*1e3:.2f} mm'
-                ax.text(0.25, 0.85, txt, transform=ax.transAxes, bbox=dict(facecolor='white'))
-                plt.tight_layout()
-                
-
-        results.append(row)
-
-    return pd.DataFrame(results)
-
-
-def Fit_GaussianBeamRadius_V2(stats, colsForAnalysis, wavelength=1064e-9, doPlot=False):
-    '''
-    Returns dataframe of z0, w0 vs. power for input dataframe of 
-    beam widths vs. position
-
-    Parameters
-    ----------
-    stats : dataframe of gaussian fit results from raw beam images (widths, centers, errors etc)
-    colsForAnalysis : [Xwidth, Ywidth] the dataframe columns to analyze
-    doPlot : optional to plot beam radius vs. distance with w(z) fit
-
-    Returns
-    -------
-    dataframe of w0, z0 at different powers, and errors of w0, z0 from fit's pcov
-    '''
-    results = []
-    
-    # Gaussian beam radius function w(z)
-    def w_z(z, w0, z0):
-        zR = np.pi * w0**2 / wavelength
-        return w0 * np.sqrt(1 + ((z - z0) / zR)**2)
-
-    # group by Power
-    for power, group in stats.groupby('Power'):
-        row = {'Power': power}
-        
         if doPlot:
             fig,ax = plt.subplots(1,2,figsize=(8,4))
             fig.suptitle(f'P={power}%', fontsize=16, weight='bold')
@@ -232,8 +163,8 @@ def Fit_GaussianBeamRadius_V2(stats, colsForAnalysis, wavelength=1064e-9, doPlot
                 # store results in the dictionary
                 axis = col[0]
                 row[f'w0_{axis} fit'] = popt[0]
-                row[f'z0_{axis} fit'] = popt[1]
                 row[f'w0_{axis} fit err'] = perr[0]
+                row[f'z0_{axis} fit'] = popt[1]
                 row[f'z0_{axis} fit err'] = perr[1]
                 
             except Exception as e:
@@ -259,4 +190,33 @@ def Fit_GaussianBeamRadius_V2(stats, colsForAnalysis, wavelength=1064e-9, doPlot
         results.append(row)
 
     return pd.DataFrame(results)
+
+
+
+def Plot_QuantvsPower(quant, results, polarizer=False):
+    
+    # convert power % to watts
+    if polarizer:
+        P_W = 2.17*results['Power'] - 28.4
+    else:
+        P_W = 2.34*results['Power'] - 30.1
+        
+    if quant[0] == 'z':
+        scale = 1e3
+        unit = 'mm'
+    elif quant[0] == 'w':
+        scale = 1e6
+        unit = 'μm'
+        
+    col_vals = quant+' fit'
+    col_errs = quant+' fit err'
+    
+    plt.figure(figsize=(4.5, 3.5))    
+    plt.errorbar(P_W, results[col_vals]*scale, yerr=results[col_errs]*scale, fmt='o', capsize=3)
+    
+    plt.title(quant+' shift vs power', fontsize=14)
+    plt.xlabel('Power (W)')
+    plt.ylabel(quant + f' ({unit})')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
 
