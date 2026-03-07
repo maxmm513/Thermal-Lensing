@@ -208,10 +208,11 @@ def Plot_QuantvsPower(quant, results, polarizer=False):
         scale = 1e6
         unit = 'μm'
         
+    plt.figure(figsize=(4.5, 3.5))    
+
     col_vals = quant+' fit'
     col_errs = quant+' fit err'
     
-    plt.figure(figsize=(4.5, 3.5))    
     plt.errorbar(P_W, results[col_vals]*scale, yerr=results[col_errs]*scale, fmt='o', capsize=3)
     
     plt.title(quant+' shift vs power', fontsize=14)
