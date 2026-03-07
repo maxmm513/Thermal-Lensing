@@ -16,7 +16,7 @@ m02 = m01
 m03 = m01
 
 f1_dict = 500e-3
-f2_dict = 125e-3
+f2_dict = -125e-3
 f3_dict = 350e-3
 
 dist12 = 1.5
@@ -110,27 +110,31 @@ TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=0)
 P_rms = np.linspace(0.1,200,25)
 
 # parameter space to explore (m)
-grid_points = 150
+grid_points = 250
 d12_vals = np.linspace(0.1, 1.5, grid_points)
 d23_vals = np.linspace(0.1, 1.5, grid_points)
 
 f_nominal = (f1_dict, f2_dict, f3_dict)
 m0_vals = (m01, m02, m03)
 
-# Calculate the RMS error matrices
-D12, D23, z0_rms, w0_rms = TL.calculate_rms_drift_2d(
-    d12_vals, d23_vals, f_nominal, m0_vals, P_rms, w0, z0_in=z0
+# RMS of z0'' and w0'' separately
+# D12, D23, z0_rms, w0_rms = TL.calculate_rms_drift_2d(
+#     d12_vals, d23_vals, f_nominal, m0_vals, P_rms, w0, z0_in=z0
+# )
+
+# combined RMS
+D12, D23, z0_rms, w0_rms, combined_err = TL.optimize_thermal_stability(
+    d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, 
+    z0_in=0,
+    weight_z=0.5,
+    weight_w=0.5
 )
 
-D12, D23, z0_max, w0_max = TL.calculate_max_shift_2d(
-    d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, z0_in=z0)
-
-#%%
-TL.Plot_RMSmap(D12, D23, z0_max, w0_max)
+TL.Plot_CombinedScore(D12, D23, combined_err)
 
 #%%
 best_configs, worst_configs = TL.get_extreme_rms_combinations(
-    D12, D23, z0_rms, num_points=5, min_spacing=0.1)
+    D12, D23, combined_err, num_points=5, min_spacing=0.2)
 
 print("--- TOP 5 MOST STABLE CONFIGURATIONS ---")
 for i, config in enumerate(best_configs):
@@ -140,15 +144,7 @@ print("\n--- TOP 5 LEAST STABLE CONFIGURATIONS ---")
 for i, config in enumerate(worst_configs):
     print(f"{i+1}. d12 = {config['d12']:.3f} m, d23 = {config['d23']:.3f} m | RMS = {config['rms']*1e3:.2f} mm")
 
-#%%
 
-D12, D23, z0_rms, w0_rms, combined_score, best_configs = TL.optimize_thermal_stability(
-    d12_vals, d23_vals, f_nominal, m0_vals, P_list, w0, 
-    z0_in=0, weight_z=0.6, weight_w=0.4, num_points=5, min_spacing=0.1
-)
-
-
-TL.Plot_CombinedScore(D12, D23, combined_score, best_configs=None)
 
 #%% Animation
 import matplotlib.animation as animation

@@ -1069,7 +1069,7 @@ def optimize_thermal_stability(d12_vals, d23_vals, f_nominal, m0_vals, P_list, w
                                ):
     """
     Calculates 2D RMS maps for focus location and waist size, evaluates a combined 
-    multi-objective score, and extracts the most stable, physically distinct setups.
+    multi-objective score
     """
     # initialize grid
     D12, D23 = np.meshgrid(d12_vals, d23_vals)
@@ -1122,7 +1122,7 @@ def Plot_CombinedScore(D12, D23, combined_score, best_configs=None):
     Plots the combined multi-objective score map and overlays the top 
     optimal configurations as numbered stars.
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 4))
     
     c = ax.pcolormesh(D12, D23, combined_score, shading='auto', cmap='turbo')
     
