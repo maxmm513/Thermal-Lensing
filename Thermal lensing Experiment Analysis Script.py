@@ -9,23 +9,44 @@ plt.close('all')
 
 # dataRootFolder = r"D:\Dropbox (Lehigh University)\Sommer Lab Shared\Data"
 dataRootFolder = r'C:/Users/wmmax/Documents/Lehigh/Sommer Group/Experiment Data'
-date = '3/3/2026'
+date = '3/5/2026'
 
 camera = 'Basler'
-powr = [15,30,40,50,60,70]
+powr = [15,30,50,70]
 data_folder = []
 
 for p in powr:
     
+    # 1.20.2026 -- first pass lens
+    # data_folder.append(fr'{camera}/After first pass 195 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 202 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 205 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 208 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 213 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 216 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 219 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 226 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 231 mm power {p}')
+    # data_folder.append(fr'{camera}/After first pass 237 mm power {p}')
+    
+    # 1.21.2026 -- second pass lens
+    # data_folder.append(fr'{camera}/After Second pass 312 mm power {p}')
+    # data_folder.append(fr'{camera}/After Second pass 319 mm power {p}')
+    # data_folder.append(fr'{camera}/After Second pass 325 mm power {p}')
+    # data_folder.append(fr'{camera}/After Second pass 326 mm power {p}')
+    # data_folder.append(fr'{camera}/After Second pass 330 mm power {p}')
+    # data_folder.append(fr'{camera}/After Second pass 331 mm power {p}')
+    # data_folder.append(fr'{camera}/After Second pass 336 mm power {p}')
+    
     # 3.3.2026 -- Lens only
-    data_folder.append(fr'{camera}/Lens only BSPM 268.38 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 276.14 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 283.17 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 290.25 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 297.74 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 304.88 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 314.28 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only BSPM 321.62 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 268.38 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 276.14 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 283.17 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 290.25 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 297.74 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 304.88 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 314.28 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only BSPM 321.62 mm power {p}')
 
     
     # 3.4.2026 -- Lens & WP, short distance
@@ -39,14 +60,14 @@ for p in powr:
     # data_folder.append(fr'{camera}/Lens and WP BPSM 321.62 mm power {p}')
     
     # 3.5.2026 -- Lens & WP, more distance
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 267.4 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 275.06 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 281.82 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 289.58 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 296.6 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 304 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 310.6 mm power {p}')
-    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 318 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 267.4 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 275.06 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 281.82 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 289.58 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 296.6 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 304 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 310.6 mm power {p}')
+    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 318 mm power {p}')
     
     # 3.6.2026 -- Lens, WP, & Polarizer
     # data_folder.append(fr'{camera}/Lens WP and Polarizer BSPM 266.49 mm power {p}')
@@ -129,41 +150,18 @@ plt.grid(True, alpha=0.3)
 plt.legend(['$w_{0X}$', '$w_{0Y}$'])
 plt.tight_layout()
 
+    
 #%%
 
-df_Lens = pd.read_csv('Focus shift SPX059AR.1 300 mm lens - Lens only.csv')
-df_LensWP = pd.read_csv('Focus shift SPX059AR.1 300 mm lens - Lens and WP.csv')
-df_LensWP_moredist = pd.read_csv('Focus shift SPX059AR.1 300 mm lens - Lens and WP more distance.csv')
-df_LensWPPolarizer = pd.read_csv('Focus shift SPX059AR.1 300 mm lens - Lens WP and Polarizer.csv')
-
-axis = 'Y'
-
-plt.figure(figsize=(4.5, 3.5))
-plt.title(f'z0_{axis} shifts')
-plt.xlabel('Power (W)')
-plt.ylabel('mm')
-
-for d in [df_Lens, df_LensWP, df_LensWP_moredist, df_LensWPPolarizer]:
+for p in powr:
+    power_folders = [folder for folder in dataPath if f'power {p}' in folder]
+    power_stats = stats[stats['Power'] == p].sort_values(by='Distance')
     
-    plt.errorbar(P_W, d[f'z0_{axis} fit']*1e3, yerr=d[f'z0_{axis} fit err']*1e3, fmt='-o', capsize=3)
-       
-plt.legend(['Lens', 'Lens & WP', 'Lens & WP (more dist)', 'Lens, WP, & Polarizer'])
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-
-
-
-plt.figure(figsize=(4.5, 3.5))
-
-plt.title(f'w0_{axis} shifts')
-plt.xlabel('Power (W)')
-plt.ylabel('μm')
-
-for d in [df_Lens, df_LensWP, df_LensWP_moredist, df_LensWPPolarizer]:
-    
-    plt.errorbar(P_W, d[f'w0_{axis} fit']*1e6, yerr=d[f'w0_{axis} fit err']*1e6, fmt='-o', capsize=3)
-    
-    
-plt.legend(['Lens', 'Lens & WP', 'Lens & WP (more dist)', 'Lens, WP, & Polarizer'])
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
+    TLE.Plot_BeamEvolutionXYWithImages(
+        power_stats, 
+        power_folders, 
+        power=p, 
+        camera=camera, 
+        ROI=ROI,
+        crop_window=300
+    )

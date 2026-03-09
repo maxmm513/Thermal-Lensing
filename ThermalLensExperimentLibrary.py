@@ -221,3 +221,117 @@ def Plot_QuantvsPower(quant, results, polarizer=False):
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
 
+#%%
+import os
+import matplotlib.lines as mlines
+
+
+def Plot_BeamEvolutionXYWithImages(group, folders, power, camera, ROI, crop_window=150, wavelength=1064e-9):
+    '''
+    Plots X and Y beam radius vs position as stacked subplots, and includes an 
+    auto-cropped inset of the beam image from each position aligned below.
+    '''
+    
+    # Gaussian beam radius function w(z)
+    def w_z(z, w0, z0):
+        zR = np.pi * w0**2 / wavelength
+        return w0 * np.sqrt(1 + ((z - z0) / zR)**2)
+
+    z = group['Distance'].values
+    z_fit = np.linspace(min(z), max(z), 2000)
+    z_mm_arr = z * 1e3
+
+    # 2 rows, 1 column
+    fig, (ax_X, ax_Y) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    fig.subplots_adjust(bottom=0.25, hspace=0.05) # leave room at bottom, remove gap between plots
+    fig.suptitle(f'P = {power}%', fontsize=16, weight='bold')
+
+    # --- Fit and Plot Xwidth ---
+    w_meas_X = group['Xwidth_mean'].values
+    w_err_X = group['Xwidth_std'].values
+    p0_X = [np.min(w_meas_X), z[np.argmin(w_meas_X)]]
+    
+    try:
+        popt_X, pcov_X = curve_fit(w_z, z, w_meas_X, p0=p0_X, sigma=w_err_X, absolute_sigma=True)
+        perr_X = np.sqrt(np.diag(pcov_X))
+        
+        ax_X.errorbar(z*1e3, w_meas_X*1e6, yerr=w_err_X*1e6, fmt='o', capsize=3)
+        ax_X.plot(z_fit*1e3, w_z(z_fit, *popt_X)*1e6, 'r-')
+        txt_X = f'w0x = {popt_X[0]*1e6:.2f} $\\pm$ {perr_X[0]*1e6:.2f} μm\nz0x = {popt_X[1]*1e3:.2f} $\\pm$ {perr_X[1]*1e3:.2f} mm'
+        ax_X.text(0.4, 0.80, txt_X, transform=ax_X.transAxes, bbox=dict(facecolor='white', alpha=0.9))
+    except Exception as e:
+        print(f"X Fit failed for Power {power}: {e}")
+
+    ax_X.set_ylabel('Xwidth (μm)', fontsize=12)
+    ax_X.grid(True, alpha=0.3)
+
+    # --- Fit and Plot Ywidth ---
+    w_meas_Y = group['Ywidth_mean'].values
+    w_err_Y = group['Ywidth_std'].values
+    p0_Y = [np.min(w_meas_Y), z[np.argmin(w_meas_Y)]]
+    
+    try:
+        popt_Y, pcov_Y = curve_fit(w_z, z, w_meas_Y, p0=p0_Y, sigma=w_err_Y, absolute_sigma=True)
+        perr_Y = np.sqrt(np.diag(pcov_Y))
+        
+        ax_Y.errorbar(z*1e3, w_meas_Y*1e6, yerr=w_err_Y*1e6, fmt='o', capsize=3, color='C2')
+        ax_Y.plot(z_fit*1e3, w_z(z_fit, *popt_Y)*1e6, 'r-')
+        txt_Y = f'w0y = {popt_Y[0]*1e6:.2f} $\\pm$ {perr_Y[0]*1e6:.2f} μm\nz0y = {popt_Y[1]*1e3:.2f} $\\pm$ {perr_Y[1]*1e3:.2f} mm'
+        ax_Y.text(0.4, 0.80, txt_Y, transform=ax_Y.transAxes, bbox=dict(facecolor='white', alpha=0.9))
+    except Exception as e:
+        print(f"Y Fit failed for Power {power}: {e}")
+
+    ax_Y.set_ylabel('Ywidth (μm)', fontsize=12)
+    ax_Y.set_xlabel('Distance (mm)', fontsize=12)
+    ax_Y.grid(True, alpha=0.3)
+
+    # --- Draw Canvas for image insets ---
+    fig.canvas.draw()
+    bbox = ax_Y.get_position()
+    xlim = ax_Y.get_xlim()
+
+    img_w = 0.08  
+    img_h = 0.12  
+    y_bottom = 0.04 
+
+    for z_mm, folder in zip(z_mm_arr, folders):
+        try:
+            files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+            if not files:
+                continue
+            
+            files.sort()
+            last_img_path = os.path.join(folder, files[-1])
+            
+            metaData = None
+            if camera == 'Andor':
+                metaData = ImageAnalysisCode.ExtractMetaData([last_img_path])
+
+            img_list = ImageAnalysisCode.GetImages([last_img_path], camera, ROI, metaData)
+            if not img_list:
+                continue
+                
+            img_arr = img_list[0]
+            
+            # auto-crop
+            cy, cx = np.unravel_index(np.argmax(img_arr), img_arr.shape)
+            y0 = max(0, cy - crop_window // 2)
+            y1 = min(img_arr.shape[0], cy + crop_window // 2)
+            x0 = max(0, cx - crop_window // 2)
+            x1 = min(img_arr.shape[1], cx + crop_window // 2)
+            img_cropped = img_arr[y0:y1, x0:x1]
+            
+            # figure mapping relative to the bottom plot
+            x_fig = bbox.x0 + bbox.width * (z_mm - xlim[0]) / (xlim[1] - xlim[0])
+            
+            ax_img = fig.add_axes([x_fig - img_w/2, y_bottom, img_w, img_h])
+            ax_img.imshow(img_cropped, cmap='turbo') 
+            ax_img.axis('off')
+            
+            # draw line connecting the horiz axis of ax_Y to the images
+            line = mlines.Line2D([x_fig, x_fig], [y_bottom + img_h, bbox.y0 - 0.01], 
+                                 color='gray', linestyle=':', lw=1.5, transform=fig.transFigure)
+            fig.add_artist(line)
+            
+        except Exception as e:
+            print(f"Could not load raw image from {folder}: {e}")
