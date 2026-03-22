@@ -5,7 +5,7 @@ from scipy.optimize import curve_fit
 
 plt.close('all')
 
-lensType = 'SPX023AR.1'
+lensType = 'SPX059AR.1'
 axis = 'Y'
 
 if lensType == 'SPX030AR.33':
