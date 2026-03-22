@@ -9,10 +9,12 @@ plt.close('all')
 
 # dataRootFolder = r"D:\Dropbox (Lehigh University)\Sommer Lab Shared\Data"
 dataRootFolder = r'C:/Users/wmmax/Documents/Lehigh/Sommer Group/Experiment Data'
-date = '3/5/2026'
+date = '3/16/2026'
+# date='12/1/2025'
 
 camera = 'Basler'
-powr = [15,30,50,70]
+powr = [15,30,40,50,60,70]
+# powr = [15,30,50,70]
 data_folder = []
 
 for p in powr:
@@ -38,7 +40,23 @@ for p in powr:
     # data_folder.append(fr'{camera}/After Second pass 331 mm power {p}')
     # data_folder.append(fr'{camera}/After Second pass 336 mm power {p}')
     
-    # 3.3.2026 -- Lens only
+    # 11.13.2025 -- 300 mm lens (SPX059AR.1)
+    # data_folder.append(fr'{camera}/SPX059AR.1 277 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 283 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 290 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 297 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 301 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 307 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 315 mm power {p}')
+    
+    # 11.14.2025 -- 300 mm lens again (SPX059AR.1)
+    # data_folder.append(fr'{camera}/SPX059AR.1 again 285 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 again 292 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 again 299 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 again 311 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX059AR.1 again 317 mm power {p}')
+    
+    # 3.3.2026 -- 300 mm lens only (SPX059AR.1)
     # data_folder.append(fr'{camera}/Lens only BSPM 268.38 mm power {p}')
     # data_folder.append(fr'{camera}/Lens only BSPM 276.14 mm power {p}')
     # data_folder.append(fr'{camera}/Lens only BSPM 283.17 mm power {p}')
@@ -60,14 +78,14 @@ for p in powr:
     # data_folder.append(fr'{camera}/Lens and WP BPSM 321.62 mm power {p}')
     
     # 3.5.2026 -- Lens & WP, more distance
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 267.4 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 275.06 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 281.82 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 289.58 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 296.6 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 304 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 310.6 mm power {p}')
-    data_folder.append(fr'{camera}/Lens and WP more distance BSPM 318 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 267.4 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 275.06 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 281.82 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 289.58 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 296.6 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 304 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 310.6 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens and WP more distance BSPM 318 mm power {p}')
     
     # 3.6.2026 -- Lens, WP, & Polarizer
     # data_folder.append(fr'{camera}/Lens WP and Polarizer BSPM 266.49 mm power {p}')
@@ -78,6 +96,28 @@ for p in powr:
     # data_folder.append(fr'{camera}/Lens WP and Polarizer BSPM 302.4 mm power {p}')
     # data_folder.append(fr'{camera}/Lens WP and Polarizer BSPM 310.06 mm power {p}')
     # data_folder.append(fr'{camera}/Lens WP and Polarizer BSPM 317.69 mm power {p}')
+    
+    # 12.1.2025 -- 125 mm lens (SPX023AR.1)
+    # data_folder.append(fr'{camera}/SPX023AR.1 110 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX023AR.1 113 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX023AR.1 117 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX023AR.1 121 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX023AR.1 124 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX023AR.1 128 mm power {p}')
+    # data_folder.append(fr'{camera}/SPX023AR.1 132 mm power {p}')
+    
+    # 3.16.2026 -- 350 mm lens (SPX030AR.33)
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 311.4 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 318.3 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 325.9 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 333.1 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 340.7 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 348.6 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 356.3 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 362.5 mm power {p}')
+    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 370.1 mm power {p}')
+
+
 
 
 rep = 6
@@ -151,17 +191,104 @@ plt.legend(['$w_{0X}$', '$w_{0Y}$'])
 plt.tight_layout()
 
     
-#%%
+#%% Plot beam images with propagation graph
 
-for p in powr:
-    power_folders = [folder for folder in dataPath if f'power {p}' in folder]
-    power_stats = stats[stats['Power'] == p].sort_values(by='Distance')
+# for p in powr:
+#     power_folders = [folder for folder in dataPath if f'power {p}' in folder]
+#     power_stats = stats[stats['Power'] == p].sort_values(by='Distance')
     
-    TLE.Plot_BeamEvolutionXYWithImages(
-        power_stats, 
-        power_folders, 
-        power=p, 
-        camera=camera, 
-        ROI=ROI,
-        crop_window=300
-    )
+#     TLE.Plot_BeamEvolutionXYWithImages(
+#         power_stats, 
+#         power_folders, 
+#         power=p, 
+#         camera=camera, 
+#         ROI=ROI,
+#         crop_window=300
+#     )
+
+#%% Extract m0 with known w0, z0, and f
+from scipy.optimize import curve_fit
+
+z0 = 0
+lamb = 1064e-9 
+
+P_data = 2.34*results['Power'].values - 30.1
+
+var2analyze = ['X', 'Y']
+
+plt.figure(figsize=(5, 4))
+plt.rcParams['font.size']=12
+
+for j in range(len(var2analyze)):
+    
+    
+    if var2analyze == 'X':
+        w0_meas = 1.95e-3
+        w0_meas_err = 0.06e-3
+    else:
+        w0_meas = 2.14e-3
+        w0_meas_err = 0.08e-3
+    
+    z_R = (np.pi * w0_meas**2) / lamb
+
+
+    z0_data = results['z0_'+ var2analyze[j] +' fit'].values
+    z0_data_err = results['z0_'+ var2analyze[j] +' fit err']
+    
+    f_measured = z0_data[0]       
+    f_measured_err = z0_data_err[0]
+
+
+    def FocusAfterLens(P, alpha):
+        F = f_measured / (1 + alpha * P)
+        z0_prime = F * (z_R**2 - z0 * (F - z0)) / ((F - z0)**2 + z_R**2)
+        return z0_prime
+
+
+    initial_guess = [1e-4] 
+    
+    popt, pcov = curve_fit(FocusAfterLens, P_data, z0_data, p0=initial_guess)
+    
+    alpha_fit = popt[0]
+    cov_aa = pcov[0][0]
+    alpha_err = np.sqrt(cov_aa)
+    
+    m0 = alpha_fit * w0_meas**2 / f_measured
+    
+    # derivatives
+    dm0_da = w0_meas**2 / f_measured
+    dm0_dw = 2*alpha_fit*w0_meas / f_measured
+    dm0_df = -alpha_fit * w0_meas**2 / f_measured**2
+    
+    # variance terms for each parameter
+    var_a = (dm0_da * alpha_err)**2
+    var_w = (dm0_dw * w0_meas_err)**2
+    var_f = (dm0_df * f_measured_err)**2
+    
+    # Total error in m_0
+    m0_err = np.sqrt(var_a + var_f + var_w)
+    
+    print('------- '+var2analyze[j]+' fit values -------')
+    print(f"alpha: {alpha_fit:.3e} +/- {alpha_err:.3e} W^-1")
+    print(f"m0: {m0:.3e} +/- {m0_err:.3e} m/W\n")
+
+    P_fit_curve = np.linspace(min(P_data), max(P_data), 1000)
+    z0_fit_curve = FocusAfterLens(P_fit_curve, alpha_fit)
+
+    plt.errorbar(P_data, z0_data*1e3, yerr=z0_data_err*1e3, 
+                 fmt = 'o',
+                 label='z0'+var2analyze[j]+' data', 
+                 color='C'+str(j+2),
+                 capsize=3
+                 )
+    
+    plt.plot(P_fit_curve, z0_fit_curve*1e3, 
+             label=f'$\\alpha$={alpha_fit:.2e} $\pm$ {alpha_err:.2e} 1/W', 
+             color='C'+str(j+2)
+             )
+
+plt.xlabel('Power (W)')
+plt.ylabel('$z_0^\prime$ (mm)')
+plt.legend(fontsize=10)
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
