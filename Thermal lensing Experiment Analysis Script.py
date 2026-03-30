@@ -9,12 +9,13 @@ plt.close('all')
 
 # dataRootFolder = r"D:\Dropbox (Lehigh University)\Sommer Lab Shared\Data"
 dataRootFolder = r'C:/Users/wmmax/Documents/Lehigh/Sommer Group/Experiment Data'
-date = '3/16/2026'
+date = '3/27/2026'
 # date='12/1/2025'
 
 camera = 'Basler'
-powr = [15,30,40,50,60,70]
+# powr = [15,30,40,50,60,70]
 # powr = [15,30,50,70]
+powr = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
 data_folder = []
 
 for p in powr:
@@ -107,15 +108,45 @@ for p in powr:
     # data_folder.append(fr'{camera}/SPX023AR.1 132 mm power {p}')
     
     # 3.16.2026 -- 350 mm lens (SPX030AR.33)
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 311.4 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 318.3 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 325.9 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 333.1 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 340.7 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 348.6 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 356.3 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 362.5 mm power {p}')
-    data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 370.1 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 311.4 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 318.3 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 325.9 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 333.1 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 340.7 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 348.6 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 356.3 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 362.5 mm power {p}')
+    # data_folder.append(fr'{camera}/Lens only SPX030AR.33 BSPM 370.1 mm power {p}')
+    
+    # 3.12.2026 -- telescope collimation
+    # data_folder.append(fr'{camera}/Last telescope attempt pos1 111.8 mm power {p}')
+    # data_folder.append(fr'{camera}/Last telescope attempt pos1 227.8 mm power {p}')
+    # data_folder.append(fr'{camera}/Last telescope attempt pos1 389.8 mm power {p}')
+    # data_folder.append(fr'{camera}/Last telescope attempt pos1 498.8 mm power {p}')
+    
+    # data_folder.append(fr'{camera}/Last telescope attempt pos2 112.8 mm power {p}')
+    # data_folder.append(fr'{camera}/Last telescope attempt pos2 228.8 mm power {p}')
+    # data_folder.append(fr'{camera}/Last telescope attempt pos2 390.8 mm power {p}')
+    # data_folder.append(fr'{camera}/Last telescope attempt pos2 499.8 mm power {p}')
+    
+    # 3.27.2026 -- focus first order beam
+    data_folder.append(fr'{camera}/Focus first order BSPM 292.4 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 297 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 304.3 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 312.5 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 320 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 326.6 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 334.2 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 342.2 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 349.6 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 356.2 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 363.5 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order BSPM 370.3 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order 377.7 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order 384.5 mm power {p}')
+    data_folder.append(fr'{camera}/Focus first order 392.3 mm power {p}')
+
+
 
 
 
@@ -124,7 +155,7 @@ rep = 6
 commonPhrase = True
 save = False
 
-angle = 0
+angle = -10
 
 # rowstart=720
 # rowend=880
@@ -148,8 +179,9 @@ stats = TLE.RawFitStats(df, colsForAnalysis)
 
 results = TLE.Fit_GaussianBeamRadius(stats, colsForAnalysis, doPlot=True)
 
-if save:
-    results.to_csv('Focus shift SPX059AR.1 300 mm lens - Lens only.csv', index=False)
+# if save:
+    # stats.to_csv('stats_collimationRetry_03122026.csv', index=False)
+    # results.to_csv('Focus shift SPX059AR.1 300 mm lens - Lens only.csv', index=False)
 
 #%%
 
@@ -159,11 +191,13 @@ if save:
 # TLE.Plot_QuantvsPower('w0_Y', results)
 
 #%%
+
+P_W = np.array([1.7, 14.75, 34.06, 52.75, 67.28, 76.2, 81.5, 84.3])
+
 scale=1e3
 
 plt.figure(figsize=(4.5,3.5))
 
-P_W = 2.34*results['Power'] - 30.1
 plt.errorbar(P_W, results['z0_X fit']*scale, yerr=results['z0_X fit err']*scale, fmt='o-', capsize=3)
 plt.errorbar(P_W, results['z0_Y fit']*scale, yerr=results['z0_Y fit err']*scale, fmt='o-', capsize=3)
 
@@ -179,7 +213,6 @@ scale=1e6
 
 plt.figure(figsize=(4.5,3.5))
 
-P_W = 2.34*results['Power'] - 30.1
 plt.errorbar(P_W, results['w0_X fit']*scale, yerr=results['w0_X fit err']*scale, fmt='o-', capsize=3)
 plt.errorbar(P_W, results['w0_Y fit']*scale, yerr=results['w0_Y fit err']*scale, fmt='o-', capsize=3)
 
@@ -212,7 +245,8 @@ from scipy.optimize import curve_fit
 z0 = 0
 lamb = 1064e-9 
 
-P_data = 2.34*results['Power'].values - 30.1
+# P_data = 2.34*results['Power'].values - 30.1
+P_data = np.array([1.7, 14.75, 34.06, 52.75, 67.28, 76.2, 81.5, 84.3])
 
 var2analyze = ['X', 'Y']
 

@@ -3,6 +3,43 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from ImageAnalysis import ImageAnalysisCode
+import os
+import re
+import matplotlib.lines as mlines
+
+def RecognizeCommonPhrase(dataPathList, repetition):
+    
+    pattern_both = re.compile(r'(?:(\d+(?:\.\d+)?)\s*mm).*?power\s*(\d+(?:\.\d+)?)$', re.IGNORECASE)
+    pattern_distance_only = re.compile(r'(\d+(?:\.\d+)?)\s*mm', re.IGNORECASE)
+
+    conditions = []
+    values = []
+    distances = []
+
+    for name in dataPathList:
+        basename = os.path.basename(name)
+
+        match_both = pattern_both.search(basename)
+        match_dist = pattern_distance_only.search(basename)
+
+        if match_both:
+            distance = float(match_both.group(1))
+            value = float(match_both.group(2))
+            condition = re.sub(pattern_both, '', basename).strip()
+        elif match_dist:
+            distance = float(match_dist.group(1))
+            value = np.nan
+            condition = re.sub(pattern_distance_only, '', basename).strip()
+        else:
+            distance = np.nan
+            value = np.nan
+            condition = basename.strip()
+
+        conditions.extend([condition] * repetition)
+        values.extend([value] * repetition)
+        distances.extend([distance] * repetition)
+    
+    return conditions, values, distances
 
 
 def Fit_GaussianRawImages(dataPath, camera, ROI, 
@@ -37,7 +74,7 @@ def Fit_GaussianRawImages(dataPath, camera, ROI,
 
     if commonPhrase:
 
-        conditions, values, distances = ImageAnalysisCode.RecognizeCommonPhrase(dataPath, repetition)
+        conditions, values, distances = RecognizeCommonPhrase(dataPath, repetition)
 
         df['Condition'] = conditions
         df['Power'] = values
@@ -145,7 +182,10 @@ def Fit_GaussianBeamRadius(stats, colsForAnalysis, wavelength=1064e-9, doPlot=Fa
         
         if doPlot:
             fig,ax = plt.subplots(1,2,figsize=(8,4))
-            fig.suptitle(f'P={power}%', fontsize=16, weight='bold')
+            if power > 11:
+                fig.suptitle(f'P={power}%', fontsize=16, weight='bold')
+            else:
+                fig.suptitle(f'P={power} V', fontsize=16, weight='bold')
             j = 0
 
         for col in colsForAnalysis:
@@ -222,9 +262,6 @@ def Plot_QuantvsPower(quant, results, polarizer=False):
     plt.tight_layout()
 
 #%%
-import os
-import matplotlib.lines as mlines
-
 
 def Plot_BeamEvolutionXYWithImages(group, folders, power, camera, ROI, crop_window=150, wavelength=1064e-9):
     '''
