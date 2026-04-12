@@ -345,3 +345,73 @@ plt.ylabel('$z_0^\prime$ (mm)')
 plt.legend(fontsize=10)
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
+
+#%% include M^2 factor in zR
+
+plt.figure(figsize=(6, 5))
+plt.rcParams['font.size'] = 12
+
+for j, axis in enumerate(var2analyze):
+    
+    if axis == 'X':
+        w0_meas = 1.95e-3
+        w0_meas_err = 0.06e-3
+    else:
+        w0_meas = 2.14e-3
+        w0_meas_err = 0.08e-3
+    
+    z0_data = results['z0_'+ axis +' fit'].values
+    z0_data_err = results['z0_'+ axis +' fit err'].values
+    
+    f_measured = z0_data[0]       
+    f_measured_err = z0_data_err[0]
+
+    # include M^2 as a fit parameter
+    def FocusAfterLens(P, alpha, M2):
+        z_R_fit = (np.pi * w0_meas**2) / (M2 * lamb)
+        
+        F = f_measured / (1 + alpha * P)
+        z0_prime = F * (z_R_fit**2 - z0 * (F - z0)) / ((F - z0)**2 + z_R_fit**2)
+        return z0_prime
+
+    initial_guess = [1e-4, 1] 
+    
+    popt, pcov = curve_fit(FocusAfterLens, P_data, z0_data, p0=initial_guess)
+    
+    alpha_fit, M2_fit = popt
+    alpha_err, M2_err = np.sqrt(np.diag(pcov))
+    
+    # Calculate m0 with the fitted alpha
+    m0 = alpha_fit * w0_meas**2 / f_measured
+    
+    # --- Error Propagation for m0 ---
+    dm0_da = w0_meas**2 / f_measured
+    dm0_dw = 2 * alpha_fit * w0_meas / f_measured
+    dm0_df = -alpha_fit * w0_meas**2 / f_measured**2
+    
+    var_a = (dm0_da * alpha_err)**2
+    var_w = (dm0_dw * w0_meas_err)**2
+    var_f = (dm0_df * f_measured_err)**2
+    m0_err = np.sqrt(var_a + var_f + var_w)
+    
+    # Output results
+    print(f'------- {axis} fit values -------')
+    print(f"alpha: {alpha_fit:.3e} +/- {alpha_err:.3e} W^-1")
+    print(f"M^2:   {M2_fit:.3f} +/- {M2_err:.3f}")
+    print(f"m0:    {m0:.3e} +/- {m0_err:.3e} m/W\n")
+
+    # Plotting
+    P_fit_curve = np.linspace(min(P_data), max(P_data), 1000)
+    z0_fit_curve = FocusAfterLens(P_fit_curve, alpha_fit, M2_fit)
+
+    plt.errorbar(P_data, z0_data*1e3, yerr=z0_data_err*1e3, 
+                 fmt='o', label=f'Data {axis}', color=f'C{j}', capsize=3)
+    
+    plt.plot(P_fit_curve, z0_fit_curve*1e3, 
+             label=f'Fit {axis} ($M^2$={M2_fit:.2f})', color=f'C{j}')
+
+plt.xlabel('Power (W)')
+plt.ylabel('$z_0^\prime$ (mm)')
+plt.legend(fontsize=9)
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
