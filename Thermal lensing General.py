@@ -8,19 +8,20 @@ plt.close('all')
 #%% Parameters and Optical System
 w0 = 1e-3
 zR_num = TL.z_R(w0)       
-z0 = 0 * zR_num    
-P_list = [0.1, 1, 25, 50, 100, 200]
+z0 = 0 * zR_num 
+P_list = [0, 25, 50, 75, 100]
 
 m01 = 4e-9
 m02 = m01
 m03 = m01
 
-f1_dict = 500e-3
-f2_dict = -125e-3
-f3_dict = 350e-3
+f1_dict = 100e-3
+f2_dict = 200e-3
+f3_dict = 250e-3
 
-dist12 = 1.5
-dist23 = 1.5
+dist12 = f1_dict + f2_dict #1.5
+dist12 = 0.8
+dist23 = 0.53
 
 optics = [
     # {'z': 0, 'f_base': 0.250, 'm0': m0, 'name': '250 mm'},
@@ -31,15 +32,15 @@ optics = [
     {'z': dist12+dist23, 'f_base': f3_dict, 'm0': m03, 'name':f'{f3_dict*1e3} mm'}
 ]
 
-z_obs = dist12 + dist23 + 1
-z_points = np.linspace(0, z_obs, 8000) 
+z_obs = dist12 + dist23 + 10.5
+z_points = np.linspace(0, z_obs, 3000) 
 
-#%%
+
 # plt.figure(figsize=(9,4))
-plt.figure(figsize=(6,3))
+plt.figure(figsize=(7,4))
 for P in P_list:
     w_z,thermal_f = TL.propagate(optics, z_points, w0, P, z0=z0)
-    plt.plot(z_points*1e3, w_z*1e6, label=f'P={P} W')
+    plt.plot(z_points*1e3, w_z*1e3, label=f'P={P} W')
 
 # plot optic locations
 for elem in optics:
@@ -48,7 +49,8 @@ for elem in optics:
              rotation=90, va='top', ha='center', fontsize=9)
 
 plt.xlabel('z (mm)', fontsize=13)
-plt.ylabel('Beam radius (µm)', fontsize=13)
+# plt.ylabel('Beam radius (µm)', fontsize=13)
+plt.ylabel('Radius (mm)')
 plt.legend(fontsize=10)
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
@@ -97,20 +99,34 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 
 #%%
-P_dense = np.linspace(0.2, 200, 1000)
+P_dense = np.linspace(0.2, 85, 1000)
 
-z0_list = [-3*zR_num, -1*zR_num, 0, 1*zR_num, 3*zR_num]
-TL.Plot_2Lens_Diagnostics(optics, P_dense, w0, z0_list)
+z0_list = [-1*zR_num, -0.5*zR_num, 0, 0.5*zR_num, 1*zR_num]
+# z0_list = [0]
+# results = TL.Plot_2Lens_Diagnostics_V2(optics, P_dense, w0, z0_list)
 
-D_list = [0.25, 0.75, 1, 2.5]
-TL.Plot_3Lens_DistScan(optics, P_dense, w0, z0, D_list, delta_focus=0)
+# params vs. power for variable input z0
+results = TL.Plot_3Lens_Diagnostics(optics, P_dense, w0, z0_list)
+
+#%%
+d23_sweep = np.linspace(0.1, 1.5, 9000) # 100mm to 1200mm
+P_check = [0, 25, 50, 75, 100]
+fixed_z0 = 0
+
+d12_val = 0.22
+analysis_data = TL.Plot_3Lens_SpacingScan(optics, d12_val, d23_sweep, w0, fixed_z0, P_check)
+
+# To find where the focus shift is minimized between 1W and 85W:
+z0_shift = analysis_data['z0_final'][3] - analysis_data['z0_final'][0]
+min_shift_idx = np.argmin(np.abs(z0_shift))
+print(f"Optimal d23 for stability: {d23_sweep[min_shift_idx]*1e3:.2f} mm")
 
 #%% Run the Grid Search and Plot
 
-P_rms = np.linspace(0.1,200,25)
+P_rms = np.linspace(0,100,30)
 
 # parameter space to explore (m)
-grid_points = 250
+grid_points = 500
 d12_vals = np.linspace(0.1, 1.5, grid_points)
 d23_vals = np.linspace(0.1, 1.5, grid_points)
 
@@ -131,6 +147,8 @@ D12, D23, z0_rms, w0_rms, combined_err = TL.optimize_thermal_stability(
 )
 
 TL.Plot_CombinedScore(D12, D23, combined_err)
+# plt.axvline(f1_dict + f2_dict, ls='--', c='r')
+plt.axvline(d12_val, ls='--', c='r', ymin=1)
 
 #%%
 best_configs, worst_configs = TL.get_extreme_rms_combinations(
@@ -189,7 +207,7 @@ P_values = np.linspace(1, 500, 100)
 # )
 
 
-z0_list = [-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num]
+# z0_list = [-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num]
 # ani = TL.AnimateBeamVsPowerMultipleZ0(
 #         optics,
 #         z_plot,
@@ -198,17 +216,17 @@ z0_list = [-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num]
 #         z0_list
 #     )
 
-L1_dist = 1.2
-L2_positions = np.linspace(L1_dist+0.2, L1_dist+0.7, 200)
+# L1_dist = 1.2
+# L2_positions = np.linspace(L1_dist+0.2, L1_dist+0.7, 200)
 
-ani = TL.AnimateBeamMultiPower(
-        optics,
-        z_plot,
-        L2_positions,
-        optics[-1]['name'],      
-        [0, 20, 50, 100, 150],            # list of powers
-        w0,
-        z0=0)
+# ani = TL.AnimateBeamMultiPower(
+#         optics,
+#         z_plot,
+#         L2_positions,
+#         optics[-1]['name'],      
+#         [0, 20, 50, 100, 150],            # list of powers
+#         w0,
+#         z0=0)
 
 # ani.save("beam_power_animation.gif", fps=20)
 

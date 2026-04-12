@@ -9,13 +9,13 @@ plt.close('all')
 
 # dataRootFolder = r"D:\Dropbox (Lehigh University)\Sommer Lab Shared\Data"
 dataRootFolder = r'C:/Users/wmmax/Documents/Lehigh/Sommer Group/Experiment Data'
-date = '3/27/2026'
+date = '3/30/2026'
 # date='12/1/2025'
 
 camera = 'Basler'
-# powr = [15,30,40,50,60,70]
+powr = [15,30,40,50,60,70]
 # powr = [15,30,50,70]
-powr = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
+# powr = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
 data_folder = []
 
 for p in powr:
@@ -123,28 +123,46 @@ for p in powr:
     # data_folder.append(fr'{camera}/Last telescope attempt pos1 227.8 mm power {p}')
     # data_folder.append(fr'{camera}/Last telescope attempt pos1 389.8 mm power {p}')
     # data_folder.append(fr'{camera}/Last telescope attempt pos1 498.8 mm power {p}')
-    
+
     # data_folder.append(fr'{camera}/Last telescope attempt pos2 112.8 mm power {p}')
     # data_folder.append(fr'{camera}/Last telescope attempt pos2 228.8 mm power {p}')
     # data_folder.append(fr'{camera}/Last telescope attempt pos2 390.8 mm power {p}')
     # data_folder.append(fr'{camera}/Last telescope attempt pos2 499.8 mm power {p}')
     
+    # 3.26.2026 -- first order propagation
+    # data_folder.append(fr'{camera}/First order BSPM 140.4 mm power {p}')
+    # data_folder.append(fr'{camera}/First order BSPM 319.3 mm power {p}')
+    # data_folder.append(fr'{camera}/First order BSPM 496.3 mm power {p}')
+    # data_folder.append(fr'{camera}/First order BSPM 664.8 mm power {p}')
+    # data_folder.append(fr'{camera}/First order NEXT DAY BSPM 880 mm power {p}')
+
+    
     # 3.27.2026 -- focus first order beam
-    data_folder.append(fr'{camera}/Focus first order BSPM 292.4 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 297 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 304.3 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 312.5 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 320 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 326.6 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 334.2 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 342.2 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 349.6 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 356.2 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 363.5 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order BSPM 370.3 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order 377.7 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order 384.5 mm power {p}')
-    data_folder.append(fr'{camera}/Focus first order 392.3 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 292.4 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 297 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 304.3 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 312.5 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 320 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 326.6 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 334.2 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 342.2 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 349.6 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 356.2 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 363.5 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order BSPM 370.3 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order 377.7 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order 384.5 mm power {p}')
+    # data_folder.append(fr'{camera}/Focus first order 392.3 mm power {p}')
+    
+    # 3.30.2026 -- 175 mm lens
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 150.5 mm power {p}')
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 157.4 mm power {p}')
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 165.1 mm power {p}')
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 173.6 mm power {p}')
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 181.2 mm power {p}')
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 189 mm power {p}')
+    data_folder.append(fr'{camera}/Focus 175lens BSPM 196.6 mm power {p}')
+
 
 
 
@@ -155,7 +173,7 @@ rep = 6
 commonPhrase = True
 save = False
 
-angle = -10
+angle = 5
 
 # rowstart=720
 # rowend=880
@@ -192,7 +210,8 @@ results = TLE.Fit_GaussianBeamRadius(stats, colsForAnalysis, doPlot=True)
 
 #%%
 
-P_W = np.array([1.7, 14.75, 34.06, 52.75, 67.28, 76.2, 81.5, 84.3])
+# P_W = np.array([1.7, 14.75, 34.06, 52.75, 67.28, 76.2, 81.5, 84.3])
+P_W = 2.34*results['Power'] - 30.1
 
 scale=1e3
 
@@ -245,8 +264,8 @@ from scipy.optimize import curve_fit
 z0 = 0
 lamb = 1064e-9 
 
-# P_data = 2.34*results['Power'].values - 30.1
-P_data = np.array([1.7, 14.75, 34.06, 52.75, 67.28, 76.2, 81.5, 84.3])
+P_data = 2.34*results['Power'].values - 30.1
+# P_data = np.array([1.7, 14.75, 34.06, 52.75, 67.28, 76.2, 81.5, 84.3])
 
 var2analyze = ['X', 'Y']
 

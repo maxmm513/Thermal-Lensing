@@ -321,7 +321,7 @@ def Plot_SingleLensAnalysis(P, w0, m0,
     zR_input = z_R(w0)
 
     # Create figure
-    fig, ax = plt.subplots(2, 2, figsize=(10, 6))
+    fig, ax = plt.subplots(2, 2, figsize=(7, 5))
     axF, axZ = ax[0,0], ax[0,1]
     axW, axTheta = ax[1,0], ax[1,1]
 
@@ -427,14 +427,14 @@ def Plot_SingleLensAnalysis(P, w0, m0,
         a.grid(True, alpha=0.3)
 
     # Global legend outside the figure
-    fig.legend(
-        handles, labels,
-        loc='center',
-        bbox_to_anchor=(0.92, 0.5),
-        bbox_transform=fig.transFigure,
-        fontsize=10,
-        frameon=True
-    )
+    # fig.legend(
+    #     handles, labels,
+    #     loc='center',
+    #     bbox_to_anchor=(0.92, 0.5),
+    #     bbox_transform=fig.transFigure,
+    #     fontsize=10,
+    #     frameon=True
+    # )
 
     plt.tight_layout(rect=[0,0,0.88,1])
     
@@ -817,7 +817,7 @@ def Plot_3Lens_DistScan(
             z2_arr = z2_arr - z2_arr[0]
             z3_arr = z3_arr - z3_arr[0]
 
-        label = f'D = {D*1e3:.0f} mm'
+        label = f'$d23$ = {D*1e3:.0f} mm'
 
         # ---------- Row 1 ----------
         axZ2.plot(P_values, z2_arr*1e3, label=label)
@@ -862,6 +862,220 @@ def Plot_3Lens_DistScan(
 
     fig.legend(bbox_to_anchor=(1.02, 0.9))
     plt.tight_layout(rect=[0,0,0.9,1])
+    
+    
+def Plot_3Lens_Diagnostics(
+        optics,
+        P_values,
+        w0,
+        z0_list,
+        wavelength=1064e-9,
+        scale_effF=False
+    ):
+    """
+    Diagnostic tool for a 3-lens system. 
+    Returns a dictionary of results and plots the evolution of beam parameters 
+    through L1, L2, and L3.
+    """
+    # Ensure optics are sorted by position
+    optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
+    if len(optics_sorted) < 3:
+        raise ValueError("This function requires at least 3 optical elements.")
+    
+    L1, L2, L3 = optics_sorted[0], optics_sorted[1], optics_sorted[2]
+    z1, z2, z3 = L1['z'], L2['z'], L3['z']
+
+    # Storage Setup
+    Nz0 = len(z0_list)
+    NP  = len(P_values)
+    
+    # Initialize result arrays
+    results = {
+        'F1': np.zeros((Nz0, NP)), 'F2': np.zeros((Nz0, NP)), 'F3': np.zeros((Nz0, NP)),
+        'w_L1': np.zeros((Nz0, NP)), 'w_L2': np.zeros((Nz0, NP)), 'w_L3': np.zeros((Nz0, NP)),
+        'z0_final': np.zeros((Nz0, NP)), 'w0_final': np.zeros((Nz0, NP)),
+        'theta_final': np.zeros((Nz0, NP)), 'P_values': np.asarray(P_values),
+        'z0_list': np.asarray(z0_list)
+    }
+
+    fig, ax = plt.subplots(3, 3, figsize=(10, 8))
+    ((axF1, axF2, axF3), 
+     (axWL1, axWL2, axWL3), 
+     (axZout, axWout, axTheta)) = ax
+
+    zR_in = z_R(w0)
+
+    for i, z0_val in enumerate(z0_list):
+        for j, P in enumerate(P_values):
+            # --- Initial Beam at L1 ---
+            q = z0_val + 1j * zR_in
+            q = apply_matrix(q, M_free(z1))
+            w_L1 = waist_from_q(q)
+            
+            F1 = effective_focalLength(L1['f_base'], P, L1['m0'], w_L1)
+            q = apply_matrix(q, M_lens(F1))
+
+            # --- Propagate to L2 ---
+            q = apply_matrix(q, M_free(z2 - z1))
+            w_L2 = waist_from_q(q)
+            
+            F2 = effective_focalLength(L2['f_base'], P, L2['m0'], w_L2)
+            q = apply_matrix(q, M_lens(F2))
+
+            # --- Propagate to L3 ---
+            q = apply_matrix(q, M_free(z3 - z2))
+            w_L3 = waist_from_q(q)
+            
+            F3 = effective_focalLength(L3['f_base'], P, L3['m0'], w_L3)
+            q = apply_matrix(q, M_lens(F3))
+
+            # --- Final Beam Parameters (after L3) ---
+            z0_f = -np.real(q)
+            zR_f = np.imag(q)
+            w0_f = np.sqrt(wavelength / np.pi * zR_f)
+            theta_f = wavelength / (np.pi * w0_f)
+
+            # Store Data
+            results['F1'][i,j], results['F2'][i,j], results['F3'][i,j] = F1, F2, F3
+            results['w_L1'][i,j], results['w_L2'][i,j], results['w_L3'][i,j] = w_L1, w_L2, w_L3
+            results['z0_final'][i,j] = z0_f
+            results['w0_final'][i,j] = w0_f
+            results['theta_final'][i,j] = theta_f
+
+        # --- Plotting ---
+        lbl = f'z0 = {z0_val/zR_in}'
+        
+        # Focal Lengths
+        axF1.plot(P_values, results['F1'][i]*1e3, label=lbl)
+        axF2.plot(P_values, results['F2'][i]*1e3)
+        axF3.plot(P_values, results['F3'][i]*1e3)
+        
+        # Beam sizes at lenses
+        axWL1.plot(P_values, results['w_L1'][i]*1e3)
+        axWL2.plot(P_values, results['w_L2'][i]*1e3)
+        axWL3.plot(P_values, results['w_L3'][i]*1e3)
+        
+        # Output characteristics (after L3)
+        axZout.plot(P_values, results['z0_final'][i]*1e3)
+        axWout.plot(P_values, results['w0_final'][i]*1e6)
+        axTheta.plot(P_values, results['theta_final'][i]*1e3)
+
+    # Formatting
+    titles = ['Eff. F1 (mm)', 'Eff. F2 (mm)', 'Eff. F3 (mm)',
+              '$w_{L1}$ (mm)', '$w_{L2}$ (mm)', '$w_{L3}$ (mm)',
+              '$z_0^{\prime\prime}$ (mm)', '$w_0^{\prime\prime}$ (µm)', 'Divergence (mrad)']
+    
+    for a, t in zip(ax.flatten(), titles):
+        a.set_title(t)
+        a.set_xlabel('Power (W)')
+        a.grid(True, alpha=0.3)
+
+    fig.legend(loc='upper right', bbox_to_anchor=(0.98, 0.95), fontsize=8)
+    plt.tight_layout()
+    return results
+
+
+
+def Plot_3Lens_SpacingScan(
+        optics,
+        d12,
+        d23_values,  # The sweep range for the distance between L2 and L3
+        w0,
+        z0,          # Fixed input waist location
+        P_list,      # A small list of powers, e.g., [1, 50, 100]
+        wavelength=1064e-9
+    ):
+    """
+    Plots beam diagnostics against the spacing d23 for a fixed z0.
+    Different curves represent different laser powers.
+    """
+    optics_sorted = sorted([o.copy() for o in optics], key=lambda o: o['z'])
+    if len(optics_sorted) < 3:
+        raise ValueError("System must have at least 3 lenses.")
+
+    L1, L2, L3_template = optics_sorted[0], optics_sorted[1], optics_sorted[2]
+    z1, z2 = L1['z'], L2['z']
+    # d12 = z2 - z1
+
+    # Storage: Rows = Powers, Cols = Spacings
+    NP = len(P_list)
+    ND = len(d23_values)
+
+    results = {
+        'd23': np.asarray(d23_values),
+        'F3_eff': np.zeros((NP, ND)),
+        'w_L3': np.zeros((NP, ND)),
+        'z0_final': np.zeros((NP, ND)),
+        'w0_final': np.zeros((NP, ND)),
+        'theta_final': np.zeros((NP, ND)),
+    }
+
+    fig, ax = plt.subplots(2, 3, figsize=(10, 7))
+    ((axWL3, axF3, axZout), (axWout, axTheta, axBlank)) = ax
+    axBlank.axis('off')
+    
+
+    zR_in = z_R(w0)
+
+    for i, P in enumerate(P_list):
+        # 1. Calculate beam after L2 (Fixed for all d23)
+        # --------------------------------------------
+        q = z0 + 1j * zR_in
+        q = apply_matrix(q, M_free(z1))
+        w_L1 = waist_from_q(q)
+        F1 = effective_focalLength(L1['f_base'], P, L1['m0'], w_L1)
+        q = apply_matrix(q, M_lens(F1))
+
+        q = apply_matrix(q, M_free(d12))
+        w_L2 = waist_from_q(q)
+        F2 = effective_focalLength(L2['f_base'], P, L2['m0'], w_L2)
+        q = apply_matrix(q, M_lens(F2))
+        
+        # Capture the state after L2 to branch out for different d23
+        q_after_L2 = q
+
+        for j, d in enumerate(d23_values):
+            # 2. Propagate the variable distance d23 to L3
+            # --------------------------------------------
+            q_at_L3 = apply_matrix(q_after_L2, M_free(d))
+            w_L3 = waist_from_q(q_at_L3)
+            
+            F3 = effective_focalLength(L3_template['f_base'], P, L3_template['m0'], w_L3)
+            q_final = apply_matrix(q_at_L3, M_lens(F3))
+
+            # 3. Final Beam Parameters
+            # --------------------------------------------
+            results['F3_eff'][i, j] = F3
+            results['w_L3'][i, j] = w_L3
+            results['z0_final'][i, j] = -np.real(q_final)
+            results['w0_final'][i, j] = np.sqrt(wavelength / np.pi * np.imag(q_final))
+            results['theta_final'][i, j] = wavelength / (np.pi * results['w0_final'][i, j])
+
+        # Plotting the curves for this Power level
+        label = f'P = {P} W'
+        axWL3.plot(d23_values, results['w_L3'][i] * 1e3, label=label)
+        axF3.plot(d23_values, results['F3_eff'][i] * 1e3)
+        axZout.plot(d23_values, results['z0_final'][i] * 1e3)
+        axWout.plot(d23_values, results['w0_final'][i] * 1e6)
+        axTheta.plot(d23_values, results['theta_final'][i] * 1e3)
+
+    # Formatting
+    axWL3.set_title('$w_{L3}$ (mm)')
+    axF3.set_title('$F_3$ (mm)')    
+    axZout.set_title('$z_0^{\prime\prime}$ (mm)')
+    axWout.set_title('$w_0^{\prime\prime}$ (µm)')
+    axTheta.set_title('$\\theta^{\prime\prime}$ (mrad)')
+
+    for a in ax.flatten():
+        if a != axBlank:
+            a.set_xlabel('$d_{23}$ (m)', fontsize=12)
+            a.grid(True, alpha=0.3)
+
+    axWL3.legend(fontsize=10)
+    plt.suptitle(f'3-Lens Diagnostics vs Spacing $d_{23}$ (Input $z_0/z_R = {z0/zR_in:.2f}$)', fontsize=14)
+    plt.tight_layout()
+    
+    return results
 
 #%%
 
