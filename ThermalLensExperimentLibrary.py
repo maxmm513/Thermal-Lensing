@@ -6,6 +6,7 @@ from ImageAnalysis import ImageAnalysisCode
 import os
 import re
 import matplotlib.lines as mlines
+import cv2
 
 def RecognizeCommonPhrase(dataPathList, repetition):
     
@@ -40,6 +41,93 @@ def RecognizeCommonPhrase(dataPathList, repetition):
         distances.extend([distance] * repetition)
     
     return conditions, values, distances
+
+
+
+def Rotate(image_arr, deg):
+    height, width = image_arr.shape[:2]
+    
+    center = (width / 2, height / 2)
+    
+    rotationMatrix = cv2.getRotationMatrix2D(center, deg, 1.0)
+    rotated = cv2.warpAffine(image_arr, rotationMatrix, (width, height))
+    
+    return rotated, rotationMatrix
+
+
+
+def Gauss1D(x,xc,sigX,A, offset):
+    G = A * np.exp(-2 * (x-xc)**2 / sigX**2) + offset
+    return G
+
+
+
+def FitGaussianImage(gaussImageFile, graph=True, graphOption='Wide'):
+    
+    beam = ImageAnalysisCode.CheckFile(gaussImageFile)
+    Ny, Nx = beam.shape
+    x_index = np.linspace(0, Nx-1, Nx)
+    y_index = np.linspace(0, Ny-1, Ny)
+    
+    max_index = np.unravel_index(np.argmax(beam), beam.shape)
+    max_x, max_y = max_index
+
+    vert = beam[:, max_y]
+    horiz = beam[max_x, :]
+    
+    sigGuess = 40
+    offset = 0
+    
+    guessX = [max_y, sigGuess, np.max(horiz), offset]
+    paramX,_ = curve_fit(Gauss1D, x_index, horiz, p0=guessX)
+    paramX[1] = np.abs(paramX[1]) # ensure positive width
+    x_fit1 = np.linspace(0, Nx-1, 5000)
+    y_fit1 = Gauss1D(x_fit1, paramX[0], paramX[1], paramX[2], paramX[3])
+
+    guessY = [max_x, sigGuess, np.max(vert), offset]
+    paramY,_ = curve_fit(Gauss1D, y_index, vert, p0=guessY)
+    paramY[1] = np.abs(paramY[1])
+    x_fit2 = np.linspace(0,Ny-1, 5000)
+    y_fit2 = Gauss1D(x_fit2, paramY[0], paramY[1], paramY[2], paramY[3])
+    
+    centerX = int(paramX[0])
+    centerY = int(paramY[0])
+            
+    if graph:
+        fig, ax = plt.subplots(1,3)
+        
+        ax[1].plot(x_fit1, y_fit1,'r',linewidth=3)
+        ax[1].scatter(x_index, horiz, s=20)
+        ax[1].set_title('Fit vs. X')
+        
+        text_x = f"x0 = {int(paramX[0])} \nσ = {paramX[1]:.2f} px \nA = {paramX[2]:.2f}"
+        ax[1].text(0.35, 0.95, text_x, transform=ax[1].transAxes, fontsize=10,
+                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.8))
+        
+        ax[2].plot(x_fit2,y_fit2,'r',linewidth=3)
+        ax[2].scatter(y_index, vert, s=20)
+        ax[2].set_title('Fit vs. Y')
+        
+        text_y = f"y0 = {int(paramY[0])} \nσ = {paramY[1]:.2f} px \nA = {paramY[2]:.2f}"
+        ax[2].text(0.05, 0.95, text_y, transform=ax[2].transAxes, fontsize=10,
+                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.8))
+        
+        if graphOption == 'Narrow':
+            
+            ax[1].set_xlim(paramX[0]-4*paramX[1], paramX[0]+4*paramX[1])
+            ax[2].set_xlim(paramY[0]-4*paramY[1], paramY[0]+4*paramY[1])
+            
+            ax[0].imshow(beam, extent=[paramX[0]-1, 
+                                       paramX[0]+1, 
+                                       paramY[0]-1, 
+                                       paramY[0]+1])
+        else:
+            ax[0].imshow(beam*-1,cmap='binary')
+            ax[0].imshow(beam,cmap='jet')
+        
+        ax[0].set_title('Image')        
+    return paramX, paramY
+
 
 
 def Fit_GaussianRawImages(dataPath, camera, ROI, 
@@ -104,8 +192,8 @@ def Fit_GaussianRawImages(dataPath, camera, ROI,
 
     for image_arr in images:
        
-        image_arr, _ = ImageAnalysisCode.Rotate(image_arr, angle)
-        paramX, paramY = ImageAnalysisCode.FitGaussian(image_arr, doPlot, 'Wide')
+        image_arr, _ = Rotate(image_arr, angle)
+        paramX, paramY = FitGaussianImage(image_arr, doPlot, 'Wide')
        
         Xcenter = paramX[0]*pixSize
         Xwidth = paramX[1]*pixSize
@@ -122,6 +210,7 @@ def Fit_GaussianRawImages(dataPath, camera, ROI,
     df['Xamp'] = Xamps; df['Yamp'] = Yamps    
     
     return df
+
 
 
 def RawFitStats(df, colsForAnalysis):
@@ -192,6 +281,9 @@ def Fit_GaussianBeamRadius(stats, colsForAnalysis, wavelength=1064e-9, doPlot=Fa
             z = group['Distance'].values
             w_meas = group[f'{col}_mean'].values
             w_err = group[f'{col}_std'].values
+            
+            # if a fit gives an error of zero, replace it with a small value
+            w_err[w_err == 0] = 1e-8
 
             # [min width, position of min width]
             p0 = [np.min(w_meas), z[np.argmin(w_meas)]]
@@ -223,6 +315,81 @@ def Fit_GaussianBeamRadius(stats, colsForAnalysis, wavelength=1064e-9, doPlot=Fa
                 ax[j].grid(True,alpha=0.2)
                 txt = f'w0={popt[0]*1e6:.2f} $\pm$ {perr[0]*1e6:.2f} μm\nz0={popt[1]*1e3:.2f} $\pm$ {perr[1]*1e3:.2f} mm'
                 ax[j].text(0.25, 0.85, txt, transform=ax[j].transAxes, bbox=dict(facecolor='white'))
+                plt.tight_layout()
+                j=+1
+                
+
+        results.append(row)
+
+    return pd.DataFrame(results)
+
+
+
+def Fit_GaussianBeamRadius_M2factor(stats, colsForAnalysis, wavelength=1064e-9, doPlot=False):
+    '''
+    Modified version of Fit_GaussianBeamRadius but includes M^2 beam quality factor
+    in the definition for the Rayleigh range. This is an additional fit parameter that
+    will be accounted for in the output dataframe
+    '''
+    results = []
+    
+    # Gaussian beam radius function w(z)
+    def w_z(z, w0, z0, M2):
+        zR = np.pi * w0**2 / (M2*wavelength)
+        return w0 * np.sqrt(1 + ((z - z0) / zR)**2)
+
+    # group by Power
+    for power, group in stats.groupby('Power'):
+        row = {'Power': power}
+        
+        if doPlot:
+            fig,ax = plt.subplots(1,2,figsize=(8,4))
+            if power > 11:
+                fig.suptitle(f'P={power}%', fontsize=16, weight='bold')
+            else:
+                fig.suptitle(f'P={power} V', fontsize=16, weight='bold')
+            j = 0
+
+        for col in colsForAnalysis:
+            z = group['Distance'].values
+            w_meas = group[f'{col}_mean'].values
+            w_err = group[f'{col}_std'].values
+            
+            # if a fit gives an error of zero, replace it with a small value
+            w_err[w_err == 0] = 1e-8
+
+            # [min width, position of min width, M2 guess]
+            p0 = [np.min(w_meas), z[np.argmin(w_meas)], 1]
+            
+            try:
+                popt, pcov = curve_fit(w_z, z, w_meas, p0=p0, sigma=w_err, absolute_sigma=True)
+                perr = np.sqrt(np.diag(pcov))
+                
+                # store results in the dictionary
+                axis = col[0]
+                row[f'w0_{axis} fit'] = popt[0]
+                row[f'w0_{axis} fit err'] = perr[0]
+                row[f'z0_{axis} fit'] = popt[1]
+                row[f'z0_{axis} fit err'] = perr[1]
+                row[f'M2_{axis}'] = popt[2]
+                row[f'M2_{axis} err'] = perr[2]
+                
+            except Exception as e:
+                print(f"Fit failed for Power {power}, Column {col}: {e}")
+                row[f'w0_{axis}'] = row[f'z0_{axis}'] = np.nan
+                
+            if doPlot:
+                z_fit = np.linspace(min(z), max(z), 2000)
+                
+                ax[j].errorbar(z*1e3, w_meas*1e6, yerr=w_err*1e6, fmt='o', capsize=3)
+                ax[j].plot(z_fit*1e3, w_z(z_fit, *popt)*1e6,'r-')
+                
+                ax[j].set_title(f'{col}',fontsize=14)
+                ax[j].set_xlabel('Distance (mm)')
+                ax[j].set_ylabel(col+' (μm)')
+                ax[j].grid(True,alpha=0.2)
+                txt = f'w0={popt[0]*1e6:.2f} $\pm$ {perr[0]*1e6:.2f} μm\nz0={popt[1]*1e3:.2f} $\pm$ {perr[1]*1e3:.2f} mm\n$M^2$={popt[2]:.3f} $\pm$ {perr[2]:.3f}'
+                ax[j].text(0.25, 0.8, txt, transform=ax[j].transAxes, fontsize=10, bbox=dict(facecolor='white'))
                 plt.tight_layout()
                 j=+1
                 
