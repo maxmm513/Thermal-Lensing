@@ -13,8 +13,8 @@ date = '3/16/2026'
 # date='12/1/2025'
 
 camera = 'Basler'
-# powr = [15,30,40,50,60,70]
-powr = [15,30,50,70]
+powr = [15,30,40,50,60,70]
+# powr = [15,30,50,70]
 # powr = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
 data_folder = []
 
@@ -245,7 +245,7 @@ plt.tight_layout()
 #%%
 plt.figure(figsize=(4.5,3.5))
 plt.errorbar(P_W, results['M2_X'], yerr=results['M2_X err'], fmt='o-', capsize=3)
-plt.errorbar(P_W, results['M2_X'], yerr=results['M2_X err'], fmt='o--', capsize=3)
+plt.errorbar(P_W, results['M2_X'], yerr=results['M2_X err'], fmt='o:', capsize=3)
 
 plt.title('$M^2$ vs power', fontsize=14)
 plt.xlabel('Power (W)')
