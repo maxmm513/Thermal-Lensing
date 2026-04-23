@@ -1072,7 +1072,7 @@ def Plot_3Lens_SpacingScan(
             a.grid(True, alpha=0.3)
 
     axWL3.legend(fontsize=10)
-    plt.suptitle(f'3-Lens Diagnostics vs Spacing $d_{23}$ (Input $z_0/z_R = {z0/zR_in:.2f}$)', fontsize=14)
+    plt.suptitle(f'3-Lens Diagnostics w/ $d12$ = {d12:.2f}m, $z_0/z_R = {z0/zR_in:.2f}$', fontsize=14)
     plt.tight_layout()
     
     return results
