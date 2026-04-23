@@ -10,17 +10,18 @@ m0 = 4e-9
 w0 = 1e-3
 zR_num = TL.z_R(w0)
 
-z0 = np.array([-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num])
+# z0 = np.array([-3*zR_num, -1*zR_num, 0*zR_num, 1*zR_num, 3*zR_num])
+z0 = np.array([0*zR_num])
 f0 = np.array([125e-3, 250e-3, 350e-3, 500e-3])
 
-P = np.linspace(1,10000,500)  
-    
+P = np.linspace(1,3000,500)  
+plt.rcParams['font.size'] = 12
 TL.Plot_SingleLensAnalysis(P, w0, m0,
     sweep_param='z0',
     sweep_values=z0,
-    fixed_value=-100e-3,
+    fixed_value=-150e-3,
     focus_scale='mm',
-    F1_scale=True, 
+    F1_scale=False, 
     delta_focus=True
 )
 
